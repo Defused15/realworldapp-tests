@@ -3,7 +3,10 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "build",
-    "types": ["node"]
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "types": ["node"],
+    "lib": ["ES2020", "DOM"]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "playwright.config.ts"]
+  "include": ["tests/**/*.ts", "tests/data/*.json", "playwright.config.ts"]
 }

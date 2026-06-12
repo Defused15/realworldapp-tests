@@ -12,4 +12,13 @@ if (hasIgnoresFile) {
   customConfig = [{ignores}];
 }
 
-module.exports = [...customConfig, ...require('gts')];
+const playwright = require('eslint-plugin-playwright');
+
+module.exports = [
+  ...customConfig,
+  ...require('gts'),
+  {
+    ...playwright.configs['flat/recommended'],
+    files: ['tests/**/*.spec.ts'],
+  },
+];

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "uBmeaz5pX",
+    "uuid": "3b63b436-cacc-457a-a3e8-c962ef9838ac",
+    "firstName": "Ted",
+    "lastName": "Parisian",
+    "username": "Heath93",
+    "email": "Santos.Runte65@gmail.com",
+    "phoneNumber": "398-225-9900",
+    "avatar": "https://api.dicebear.com/9.x/pixel-art/svg?seed=Ted",
+    "defaultPrivacyLevel": "public",
+    "balance": 150953
+  },
+  {
+    "id": "GjWovtg2hr",
+    "uuid": "1aaad272-626c-4251-a868-306cec137eca",
+    "firstName": "Kristian",
+    "lastName": "Bradtke",
+    "username": "Arvilla_Hegmann",
+    "email": "Skyla.Stamm@yahoo.com",
+    "phoneNumber": "410-786-2112",
+    "avatar": "https://api.dicebear.com/9.x/pixel-art/svg?seed=Kristian",
+    "defaultPrivacyLevel": "private",
+    "balance": 93026
+  },
+  {
+    "id": "_XblMqbuoP",
+    "uuid": "0dcbd9f2-53bd-4b5e-bbfc-00c1f7eb703e",
+    "firstName": "Darrel",
+    "lastName": "Ortiz",
+    "username": "Dina20",
+    "email": "Marielle_Wiza@yahoo.com",
+    "phoneNumber": "887-309-1593",
+    "avatar": "https://api.dicebear.com/9.x/pixel-art/svg?seed=Darrel",
+    "defaultPrivacyLevel": "contacts",
+    "balance": 158880
+  },
+  {
+    "id": "M1ty1gR8B3",
+    "uuid": "0e9a58a1-cc8d-434c-9727-0c7fe8177e87",
+    "firstName": "Ruthie",
+    "lastName": "Prosacco",
+    "username": "Reyes.Osinski",
+    "email": "Norma27@gmail.com",
+    "phoneNumber": "467-316-5352",
+    "avatar": "https://api.dicebear.com/9.x/pixel-art/svg?seed=Ruthie",
+    "defaultPrivacyLevel": "private",
+    "balance": 117683
+  },
+  {
+    "id": "WHjJ4qR2R2",
+    "uuid": "6caf81db-e190-487a-9863-f7c5ab8a872c",
+    "firstName": "Lia",
+    "lastName": "Rosenbaum",
+    "username": "Judah_Dietrich50",
+    "email": "Nigel54@hotmail.com",
+    "phoneNumber": "990-583-8419",
+    "avatar": "https://api.dicebear.com/9.x/pixel-art/svg?seed=Lia",
+    "defaultPrivacyLevel": "public",
+    "balance": 49474
+  }
+]

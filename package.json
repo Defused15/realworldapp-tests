@@ -1,7 +1,7 @@
 {
   "name": "realworldapp-tests",
   "version": "1.0.0",
-  "description": "",
+  "description": "Playwright E2E test suite for RealWorld app",
   "main": "index.js",
   "scripts": {
     "lint": "gts lint",
@@ -10,7 +10,21 @@
     "fix": "gts fix",
     "prepare": "husky",
     "pretest": "npm run compile",
-    "posttest": "npm run lint"
+    "posttest": "npm run lint",
+    "test": "playwright test",
+    "test:ui": "playwright test --project=ui",
+    "test:api": "playwright test --project=api",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:regression": "playwright test --grep @regression",
+    "test:security": "playwright test --grep @security",
+    "test:contract": "playwright test --grep @contract",
+    "test:a11y": "playwright test --grep @a11y",
+    "test:visual": "playwright test --grep @visual",
+    "test:performance": "playwright test --grep @performance",
+    "test:staging": "NODE_ENV=staging playwright test",
+    "test:production": "NODE_ENV=production playwright test",
+    "db:seed": "npx tsx tests/scripts/seed.ts",
+    "db:reset": "npx tsx tests/scripts/teardown.ts"
   },
   "keywords": [],
   "author": "",
@@ -26,8 +40,13 @@
     ]
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.0",
+    "tsx": "^4.19.0",
+    "@faker-js/faker": "^9.0.0",
     "@playwright/test": "^1.60.0",
     "@types/node": "^22.7.5",
+    "dotenv": "^17.4.2",
+    "eslint-plugin-playwright": "^2.10.4",
     "gts": "^7.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
