@@ -361,6 +361,18 @@ Edge case values for input validation tests — blank, whitespace, boundary leng
 
 Check each file. If it already exists with real content (no TODOs, no stubs), skip it. Only write files that are missing or contain only stub/TODO content.
 
+## Known issues to avoid — signin
+
+- **`esModuleInterop` required for JSON imports:** TypeScript will fail to compile
+  `import xssPayloads from '../data/xss-payloads.json'` unless `tsconfig.json` has
+  `"esModuleInterop": true` and `"resolveJsonModule": true`. When generating or updating
+  `tsconfig.json`, always include both flags. Also ensure the `include` array covers
+  `"tests/data/*.json"` (or the whole `tests/**` glob) so TypeScript resolves the JSON files.
+
+- **JSON files must be in `tsconfig.json` include:** If `tsconfig.json`'s `include` array is
+  scoped narrowly (e.g. only `["src"]`), add `"tests/**"` or `"tests/data/*.json"` so that
+  JSON imports in test files resolve correctly under `"resolveJsonModule": true`.
+
 ## Rules
 
 - No TODOs, no stubs — every file must be real and runnable

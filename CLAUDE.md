@@ -194,3 +194,19 @@ Wave A (parallel): support-agent + pom-agent + gherkin-agent
         ↓
 Wave B (parallel): ui-test-agent + api-test-agent
 ```
+
+## Project-specific learnings
+
+- **[signin]** Formik submit button starts **ENABLED** on page load — `isValid` defaults to `true` before any validation runs (validate-on-change, not validate-on-mount). Never assert `toBeDisabled()` on a Formik button before user interaction.
+- **[signin]** Sign Up link DOM detachment: mouse-move to the "Sign Up" link triggers Formik `onBlur` on the Username field, causing a re-render that detaches the link before click fires. Use `toHaveAttribute('href', '/signup')` + `page.goto('/signup')` — never `link.click()` for Formik form navigation links.
+- **[signin]** `POST /login` 401 and 400 responses return **plain text** (`"Unauthorized"`), not JSON. Never call `res.json()` on error responses from `/login` — use `res.text()` or only `res.status()`.
+- **[signin]** `POST /users` and `POST /login` both expose the **bcrypt password hash** in the response `user.password` field (BUG-003, BUG-004 — known app bugs).
+- **[signin]** `POST /users` with missing required fields returns **500 HTML** (Prisma stack trace), not 422 JSON (BUG-001). `POST /users` with a duplicate username also returns 500 HTML, not 409 (BUG-002).
+- **[signin]** Tab focus order on `/signin` is broken — Username is NOT the first element focused by Tab (BUG-007 — known app bug).
+- **[signin]** axe-core `link-name` violations exist on `/signin` — icon-only links have no accessible name (BUG-006 — known app bug).
+- **[all]** Seed user after `npm run db:seed` is **`Heath93` / `s3cret`** (Ted Parisian, id: `uBmeaz5pX`). Never hardcode `PainterJoy90` or other usernames from the original open-source RWA seed — this project uses a custom Prisma seed.
+- **[all]** `tsconfig.json` must include `"esModuleInterop": true` and `"resolveJsonModule": true` for JSON imports in tests. The `include` array must cover `tests/**` so `tests/data/*.json` files resolve.
+- **[all]** GTS / eslint-plugin-playwright enforcements: use `toBeHidden()` (not `not.toBeVisible()`); no `waitForTimeout()`; no `waitForLoadState('networkidle')` — use `'load'` or `'domcontentloaded'`; single-param arrow functions without parens (`dialog => ...`); `_fieldName` with eslint-disable for unused destructuring vars.
+- **[all]** `BasePage.page` is `protected` — test files cannot access it. Always include `page` as a separate fixture param when needing `page.url()`, `page.goto()`, or direct page access.
+- **[all]** `page.waitForURL('**/path')` glob can fail with React Router SPA navigation. Use regex: `expect(page).toHaveURL(/path/)`.
+- **[all]** Import only what is used — ESLint will error on unused imports from helpers/factories. Do not speculatively import `createUser`, `loginAs`, etc.

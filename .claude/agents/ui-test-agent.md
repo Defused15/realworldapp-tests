@@ -151,6 +151,56 @@ If a specific section needs a different starting state (e.g., pre-fill a form), 
 - GTS style: single quotes, 2-space indent, semicolons
 - Run `npx tsc --noEmit` after writing
 
+## Known issues to avoid — signin
+
+- **Formik submit button starts ENABLED:** The submit button has `disabled={!isValid}` but Formik
+  uses validate-on-change (not validate-on-mount). On initial page load `isValid` is `true`, so
+  the button is ENABLED. Do NOT assert `toBeDisabled()` on a Formik submit button before any user
+  interaction. To test the disabled state: fill a field with an invalid value (or click submit once)
+  so Formik runs validation, then assert `toBeDisabled()`.
+
+- **Sign Up link DOM detachment (Formik onBlur re-render):** Clicking the "Sign Up" link inside
+  a Formik form triggers `onBlur` on the active field, which causes a re-render that replaces
+  the DOM node before the click fires. Never rely on `link.click()` for navigation from a Formik
+  form. Instead:
+  - Assert the link target: `await expect(signUpLink).toHaveAttribute('href', '/signup')`
+  - Navigate with: `await page.goto('/signup')`
+
+- **`waitForURL` glob vs SPA navigation:** `page.waitForURL('**/signup')` can silently fail with
+  React Router client-side navigation. Use a regex instead:
+  `await expect(page).toHaveURL(/signup/)`
+
+- **`toBeHidden()` not `not.toBeVisible()`:** GTS + eslint-plugin-playwright bans
+  `expect(locator).not.toBeVisible()`. Always use `expect(locator).toBeHidden()` for negative
+  visibility assertions.
+
+- **`waitForTimeout` and `networkidle` are banned:** eslint-plugin-playwright blocks
+  `page.waitForTimeout()` and `waitForLoadState('networkidle')`. Use
+  `waitForLoadState('load')` or `waitForLoadState('domcontentloaded')` instead.
+
+- **`page` fixture for URL checks:** `BasePage.page` is `protected`. Test files cannot access
+  `signinPage.page`. Always add `page` to the fixture params when you need `page.url()`:
+  `async ({signinPage, page}) => { ... }`
+
+- **Single-param arrow functions:** GTS requires no parentheses on single-param arrow functions.
+  Write `dialog => dialog.dismiss()` not `(dialog) => dialog.dismiss()`.
+
+- **Unused destructuring variables:** GTS `no-unused-vars` does NOT exempt bare `_`.
+  When destructuring to discard a field, name it `_fieldName` and add a disable comment:
+
+  ```typescript
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const {password: _password, ...safeUser} = user;
+  ```
+
+- **Tab focus order (BUG-007):** The Username input is NOT the first element to receive focus on
+  Tab keypress on `/signin`. Do not write a test asserting the Username is focused after the first
+  Tab — it will fail. This is a known app bug (BUG-007). Use `test.skip` with the bug reference.
+
+- **axe-core link-name violations (BUG-006):** The `/signin` page has icon-only links without
+  accessible names, causing axe-core `link-name` violations. The full WCAG 2.1 AA scan will fail.
+  This is a known app bug (BUG-006). Use `test.skip` with the bug reference.
+
 ## Output
 
 Write the single file directly. No explanation.

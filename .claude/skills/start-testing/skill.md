@@ -143,10 +143,27 @@ Then invoke the `/commit` skill to stage and commit all generated files.
 
 ---
 
+## Phase 5 — Feedback loop (always runs)
+
+**This phase always runs**, even if no failures occurred. It extracts learnings from the full cycle and updates agents + CLAUDE.md so future runs improve.
+
+Read `.claude/skills/feedback/skill.md` and follow its instructions for `<feature>`.
+
+This produces:
+
+- `docs/bug-reports/<feature>-bugs.md` — formal bug report for every `test.skip`
+- Updated agent `.md` files — concrete rules added to prevent same errors
+- Updated `CLAUDE.md` — project-specific learnings appended
+
+> The feedback loop is the memory of the system. Skip it only if explicitly asked.
+
+---
+
 ## Standalone usage of each piece
 
 Every component works independently:
 
 - `/gen-test signin on http://localhost:3000/signin` — generate only
 - `/debug-test tests/ui/signin.spec.ts` — debug one file manually
+- `/feedback signin` — run feedback loop only (after tests already pass)
 - `/commit` — commit whatever is staged

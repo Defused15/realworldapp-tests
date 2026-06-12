@@ -189,6 +189,43 @@ test.beforeEach(async ({request}) => {
 - GTS style: single quotes, 2-space indent, semicolons
 - Run `npx tsc --noEmit` after writing
 
+## Known issues to avoid — signin
+
+- **Import only what you use:** Never import `createUser`, `loginAs`, or `createTransaction` unless
+  the test file actually calls them. ESLint will error on unused imports. When tests use raw
+  `request.post()` directly (e.g. contract or functional tests that build their own bodies), omit
+  the helper imports entirely.
+
+- **POST /login error responses are plain text, not JSON:** `POST /login` with wrong credentials
+  returns `"Unauthorized"` as plain text with status 401. `POST /login` with a malformed body
+  returns plain text with status 400. Do NOT call `await res.json()` on error responses from
+  `/login` — it will throw. Use `await res.text()` to read the body, or only check `res.status()`.
+
+- **POST /users missing fields → 500 HTML, not 422 JSON (BUG-001):** The app does not validate
+  required fields before the Prisma call. Sending `POST /users` with a missing required field
+  returns 500 HTML (Prisma stack trace), not 422 JSON. Tests asserting 422 on missing fields
+  must use `test.skip` with BUG-001 reference.
+
+- **POST /users duplicate username → 500 HTML, not 409 JSON (BUG-002):** Registering with an
+  existing username returns 500 HTML. Tests asserting 409 must use `test.skip` with BUG-002.
+
+- **Password hash in responses (BUG-003, BUG-004):** `POST /login` and `POST /users` both return
+  `user.password` containing the bcrypt hash. Contract tests must document this as a known bug
+  and use `test.skip` rather than asserting the field is absent.
+
+- **Unused destructuring variables:** GTS `no-unused-vars` does NOT exempt bare `_`.
+  When destructuring to discard a field, name it `_fieldName` and add a disable comment:
+
+  ```typescript
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const {password: _password, ...safeUser} = responseBody;
+  ```
+
+- **Seed user credentials:** After `npm run db:seed`, the primary test user is `Heath93` / `s3cret`
+  (id: `uBmeaz5pX`). Do NOT hardcode `PainterJoy90` or any other username from the original
+  open-source RWA seed — this project uses a custom Prisma seed. Always use
+  `process.env.TEST_USER_USERNAME!` / `process.env.TEST_USER_PASSWORD!`.
+
 ## Output
 
 Write the single file directly. No explanation.

@@ -1,9 +1,11 @@
 import {test as base, type APIRequestContext} from '@playwright/test';
 import {SigninPage} from '../pages/signin.page';
+import {SignupPage} from '../pages/signup.page';
 
 export interface AppFixtures {
   apiClient: APIRequestContext;
   signinPage: SigninPage;
+  signupPage: SignupPage;
 }
 
 export const test = base.extend<AppFixtures>({
@@ -17,6 +19,15 @@ export const test = base.extend<AppFixtures>({
     const signinPage = new SigninPage(page);
     await signinPage.navigate();
     await use(signinPage);
+    await teardownPage(page, testInfo);
+  },
+
+  signupPage: async ({page}, use, testInfo) => {
+    await page.context().clearCookies();
+    await setupPage(page);
+    const signupPage = new SignupPage(page);
+    await signupPage.navigate();
+    await use(signupPage);
     await teardownPage(page, testInfo);
   },
 });

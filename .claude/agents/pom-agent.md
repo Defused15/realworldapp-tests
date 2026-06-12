@@ -120,6 +120,19 @@ If this is a NEW page object, also:
 - GTS style: single quotes, 2-space indent, semicolons
 - If a page object for this feature already exists, UPDATE it — don't create a duplicate
 
+## Known issues to avoid — signin
+
+- **Sign Up link DOM detachment:** Do NOT use `signUpLink.click()` to test navigation to `/signup`.
+  Playwright's mouse-move triggers Formik's `onBlur` on the Username field, causing a re-render
+  that detaches the link's DOM node before the click event fires. The correct approach is:
+  1. Assert the href: `await expect(signUpLink).toHaveAttribute('href', '/signup')`
+  2. Navigate directly: `await page.goto('/signup')`
+     Do NOT add a `clickSignUp()` action method to the POM — it will fail intermittently.
+
+- **`BasePage.page` is protected:** Test files cannot access `signinPage.page`. Never expose `page`
+  as a public property in a Page Object. Tests that need `page.url()` or `page.goto()` must
+  receive `page` as a separate fixture param: `async ({signinPage, page}) => { ... }`.
+
 ## Output
 
 Write the file and fixture update directly. Report:
