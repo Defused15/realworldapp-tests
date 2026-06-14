@@ -78,13 +78,33 @@ export async function createBankAccount(
 /**
  * Create a transaction sent to `receiverId` for the currently authenticated
  * session.
+ *
+ * POST /transactions requires a `source` (bank account id of the sender).
+ * Reuses the first existing bank account to avoid triggering the XState
+ * onboarding wizard for seed users; only creates a new one for fresh users
+ * who have none.
  */
 export async function createTransaction(
   request: APIRequestContext,
   receiverId: string,
   overrides: Partial<Omit<TransactionData, 'receiverId'>> = {},
 ): Promise<CreatedTransaction> {
-  const data = buildTransaction({...overrides, receiverId});
+  let source: string;
+  const baRes = await request.get('/bankAccounts');
+  if (baRes.ok()) {
+    const baBody = await baRes.json();
+    // GET /bankAccounts returns { results: [...] } (not "accounts")
+    const accounts = (baBody.results ?? []) as Array<{
+      id: string;
+      isDeleted: boolean;
+    }>;
+    const active = accounts.filter(a => !a.isDeleted);
+    source =
+      active.length > 0 ? active[0].id : (await createBankAccount(request)).id;
+  } else {
+    source = (await createBankAccount(request)).id;
+  }
+  const data = {...buildTransaction({...overrides, receiverId}), source};
   const res = await request.post('/transactions', {data});
   if (!res.ok()) {
     throw new Error(`createTransaction failed: ${res.status()}`);

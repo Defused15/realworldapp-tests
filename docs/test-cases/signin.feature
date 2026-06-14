@@ -328,6 +328,163 @@ Feature: Sign In
     When I tab through the page
     Then each focused element should display a clearly visible focus outline or indicator
 
+  # ===== REMEMBER ME — HAPPY PATH =====
+
+  @smoke
+  Scenario: Checking "Remember me" causes the session cookie to persist beyond the browser session
+    Given I am not signed in
+    And I am on the sign in page
+    When I enter "Heath93" in the Username field
+    And I enter "s3cret" in the Password field
+    And I check the "Remember me" checkbox
+    And I click the "SIGN IN" button
+    Then I should be signed in and redirected to the dashboard
+    And the "connect.sid" cookie should have a Max-Age or Expires attribute set approximately 30 days in the future
+    And the cookie should still be present after simulating a browser restart (clearing session state only)
+
+  @smoke
+  Scenario: Leaving "Remember me" unchecked causes the cookie to expire when the browser session ends
+    Given I am not signed in
+    And I am on the sign in page
+    When I enter "Heath93" in the Username field
+    And I enter "s3cret" in the Password field
+    And I leave the "Remember me" checkbox unchecked
+    And I click the "SIGN IN" button
+    Then I should be signed in and redirected to the dashboard
+    And the "connect.sid" cookie should have no Max-Age or Expires attribute
+    And the cookie should be a session cookie that disappears when the browser session ends
+
+  # ===== REMEMBER ME — API =====
+
+  @api @smoke
+  Scenario: POST /login with remember:true sets a persistent cookie
+    Given the API is available at http://localhost:3001
+    When I send a POST request to /login with body:
+      """
+      { "username": "Heath93", "password": "s3cret", "remember": true }
+      """
+    Then the response status should be 200
+    And the "Set-Cookie" response header should contain "connect.sid"
+    And the "connect.sid" cookie should include a "Max-Age" or "Expires" attribute indicating a 30-day lifetime
+
+  @api @smoke
+  Scenario: POST /login without a remember field sets a session-only cookie
+    Given the API is available at http://localhost:3001
+    When I send a POST request to /login with body:
+      """
+      { "username": "Heath93", "password": "s3cret" }
+      """
+    Then the response status should be 200
+    And the "Set-Cookie" response header should contain "connect.sid"
+    And the "connect.sid" cookie should NOT include a "Max-Age" or "Expires" attribute
+
+  # ===== REMEMBER ME — EDGE CASES =====
+
+  @regression
+  Scenario: The "Remember me" checkbox is unchecked by default when the page loads
+    Given I navigate to the sign in page
+    When the page has fully loaded
+    Then the "Remember me" checkbox should be unchecked
+    And no prior selection should be retained from a previous visit
+
+  @regression
+  Scenario: The "Remember me" checkbox can be toggled on and off before submitting
+    Given I am on the sign in page
+    When I check the "Remember me" checkbox
+    Then the checkbox should appear checked
+    When I uncheck the "Remember me" checkbox
+    Then the checkbox should appear unchecked
+    And I should be able to submit the form with the checkbox in its final state
+
+  @regression
+  Scenario: The "Remember me" checkbox is operable using the keyboard alone
+    Given I am on the sign in page
+    When I tab to the "Remember me" checkbox
+    Then the checkbox should receive visible keyboard focus
+    When I press Space
+    Then the checkbox should become checked
+    When I press Space again
+    Then the checkbox should become unchecked
+
+  # ===== REMEMBER ME — SECURITY =====
+
+  @security
+  Scenario: A failed sign in with "Remember me" checked does not set a persistent cookie
+    Given I am not signed in
+    And I am on the sign in page
+    When I enter "Heath93" in the Username field
+    And I enter "wrongpassword" in the Password field
+    And I check the "Remember me" checkbox
+    And I click the "SIGN IN" button
+    Then I should remain on the sign in page
+    And I should see an error message below the "SIGN IN" button
+    And no "connect.sid" cookie should be set in my browser
+
+  @security
+  Scenario: A persistent cookie created with remember-me cannot be used after it is invalidated server-side
+    Given I have signed in with "Remember me" checked and received a persistent "connect.sid" cookie
+    When the server invalidates that session (e.g., via sign out or session purge)
+    And I make an authenticated request to the API using the old cookie value
+    Then the response status should be 401 or 302 redirect to the sign in page
+    And I should not be able to access protected resources with the old cookie
+
+  # ===== DON'T HAVE AN ACCOUNT LINK — HAPPY PATH =====
+
+  @smoke
+  Scenario: The "Don't have an account? Sign Up" link is visible on the sign in page
+    Given I am on the sign in page
+    Then I should see the text "Don't have an account? Sign Up"
+    And the link should point to "/signup"
+
+  @smoke
+  Scenario: Navigating to /signup via the browser loads the sign up form
+    Given I am on the sign in page
+    And I can see the "Don't have an account? Sign Up" link pointing to "/signup"
+    When I navigate directly to http://localhost:3000/signup
+    Then I should see the sign up registration form
+    And the page URL should be http://localhost:3000/signup
+
+  # ===== DON'T HAVE AN ACCOUNT LINK — EDGE CASES =====
+
+  @regression
+  Scenario: The "Don't have an account? Sign Up" link href is correct and stable before any field interaction
+    Given I am on the sign in page and I have not clicked or typed in any field
+    When I inspect the "Don't have an account? Sign Up" link
+    Then the link should have an href attribute equal to "/signup"
+
+  @regression
+  Scenario: The "Don't have an account? Sign Up" link href remains correct after the user has typed in the Username field
+    Given I am on the sign in page
+    When I click on the Username field and type any text
+    And I move focus away from the Username field (triggering Formik onBlur validation)
+    Then the "Don't have an account? Sign Up" link should still be present in the page
+    And it should still have an href attribute equal to "/signup"
+
+  # ===== DON'T HAVE AN ACCOUNT LINK — SECURITY =====
+
+  @security
+  Scenario: The sign up link does not contain an open redirect to an external domain
+    Given I am on the sign in page
+    When I inspect the "Don't have an account? Sign Up" link
+    Then the href should be a relative path "/signup" or the same-origin absolute URL
+    And the href should NOT point to an external domain or contain a redirect parameter
+
+  # ===== DON'T HAVE AN ACCOUNT LINK — ACCESSIBILITY =====
+
+  @a11y
+  Scenario: The "Don't have an account? Sign Up" link is announced correctly by screen readers
+    Given I am on the sign in page
+    When a screen reader focuses on the "Don't have an account? Sign Up" link
+    Then it should announce the full visible link text "Don't have an account? Sign Up"
+    And the element should be identified as a link, not a button or generic element
+
+  @a11y
+  Scenario: The "Don't have an account? Sign Up" link is reachable by keyboard Tab navigation
+    Given I am on the sign in page
+    When I tab through all interactive elements on the page
+    Then the "Don't have an account? Sign Up" link should receive focus at some point during Tab traversal
+    And it should display a visible focus indicator when focused
+
 
 # ===== MANUAL TESTING NOTES =====
 #

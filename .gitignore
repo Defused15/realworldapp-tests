@@ -7,6 +7,7 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 /.playwright/
+.playwright-mcp/
 
 # Build output
 /build/

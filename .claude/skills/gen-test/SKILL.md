@@ -3,6 +3,10 @@ name: gen-test
 description: Generate a complete test suite for a page — scans with Playwright MCP, then runs 3 setup agents in parallel (Wave A), then 2 test agents in parallel (Wave B).
 ---
 
+**REGLA #1 — ABSOLUTA:** Nunca leer ni acceder al repositorio de la aplicación bajo prueba. Todo el conocimiento de la UI y la API se obtiene del browser vivo (Playwright MCP: `browser_snapshot`, `browser_evaluate`, `browser_take_screenshot`, `browser_network_requests`) y de llamadas directas `curl`. Nunca uses `Read`, `Bash find`, ni ningún tool que acceda al source code del app.
+
+---
+
 Generate a full test suite by scanning the live page and orchestrating agents in two parallel waves.
 
 ## Prerequisite check
@@ -29,6 +33,25 @@ Trigger the primary form action (submit with dummy-valid data) and capture:
 browser_network_requests()      ← HTTP calls: method, URL, request body, response body, status
 ```
 
+**Extract all `data-test` attributes from the live DOM** — `browser_snapshot()` shows the
+accessibility tree but may not expose `data-test` attributes. Use `browser_evaluate` to dump
+every element that has one:
+
+```javascript
+// run via browser_evaluate:
+Array.from(document.querySelectorAll('[data-test]')).map(el => ({
+  tag: el.tagName,
+  type: el.getAttribute('type'),
+  id: el.id,
+  dataTest: el.getAttribute('data-test'),
+  text: el.textContent?.trim().slice(0, 40),
+}));
+```
+
+Add all results to the context brief. **MUI TextField trap:** if you see a `data-test` on a
+`<div>` (not an `<input>`), the wrapper carries the attr — pom-agent must use `locator('#id')`
+for the actual `<input>` inside, not `getByTestId()`.
+
 Read existing fixtures and support files:
 
 ```
@@ -37,11 +60,12 @@ Read: tests/utils/factories.ts
 Read: tests/helpers/api-helpers.ts (may not exist yet)
 ```
 
-Check dependencies and install if missing:
+Check dependencies and verify `testIdAttribute` config:
 
 ```bash
 grep -q "@axe-core/playwright" package.json || npm install --save-dev @axe-core/playwright
 grep -q "@faker-js/faker" package.json || npm install --save-dev @faker-js/faker
+grep -q "testIdAttribute" playwright.config.ts || echo "WARN: testIdAttribute: 'data-test' missing from playwright.config.ts use: block — getByTestId() will match [data-testid] not [data-test]"
 ```
 
 ## Phase 2 — Build the context brief
@@ -82,6 +106,18 @@ Headings:
 --- API base URL ---
   http://localhost:3001
 
+--- data-test attributes (from browser_evaluate on live DOM) ---
+  - data-test="signin-username"  → tag=DIV (MUI wrapper — use #username for actual input)
+  - data-test="signin-submit"    → tag=BUTTON (direct — locator('[data-test="..."]') ok)
+  - ... (list all found for this feature)
+  Note: MUI TextField wrapper? (yes/no — if yes, use #id for inputs)
+  Note: Always prefer locator('[data-test="..."]') over getByTestId() for config-independence.
+        testIdAttribute: 'data-test' is set in playwright.config.ts (yes/no — from grep above).
+
+--- navigate() waitFor anchor ---
+  Pick one stable element that confirms the page's main component has rendered:
+  e.g. submitButton, transactionList, heading — pom-agent adds waitFor({state:'visible'}) on it.
+
 --- api-helpers.ts exists: yes/no ---
 ```
 
@@ -116,7 +152,28 @@ Spawn both in a **single parallel message** with the updated context brief (incl
 | `ui-test-agent`  | `tests/ui/<feature>.spec.ts`  | All UI tests: happy `@smoke`, edge `@regression`, security `@security`, a11y `@a11y`, visual `@visual` — each in its own `test.describe` block                   |
 | `api-test-agent` | `tests/api/<feature>.spec.ts` | All API tests: functional `@smoke`/`@regression`, security `@security`, contract `@contract`, performance `@performance` — each in its own `test.describe` block |
 
-## Phase 5 — Report
+Wait for both Wave B agents to complete before proceeding to Wave C.
+
+## Phase 5 — Wave C: data integrity agent
+
+Spawn **after Wave B** — it uses the same context brief and knows which API endpoints exist.
+
+| Agent                  | Writes                                       | Contains                                                                         |
+| ---------------------- | -------------------------------------------- | -------------------------------------------------------------------------------- |
+| `data-integrity-agent` | `tests/api/data-integrity/<feature>.spec.ts` | SQL cross-checks: API write → DB row, orphan checks, API vs DB count consistency |
+
+Pass the context brief plus:
+
+```
+DB tables involved: <list the tables this feature writes to, derived from API endpoints>
+Example — for transaction feature: transactions, likes, comments, notifications
+Example — for signup feature: users
+Example — for home feature: transactions, notifications (read-only, focus on API vs DB consistency)
+```
+
+The agent also creates `tests/helpers/db-helpers.ts` on first run (skips if already exists).
+
+## Phase 6 — Report
 
 After all agents complete:
 

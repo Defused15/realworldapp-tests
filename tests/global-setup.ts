@@ -3,12 +3,11 @@ import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 
-dotenv.config();
+dotenv.config({quiet: true});
 
 async function globalSetup(config: FullConfig): Promise<void> {
   const uiProject = config.projects.find(p => p.name === 'ui');
   const baseURL = uiProject?.use.baseURL ?? 'http://localhost:3000';
-  const apiURL = process.env.API_URL ?? 'http://localhost:3001';
   const authDir = '.playwright/.auth';
 
   if (!fs.existsSync(authDir)) {
@@ -27,20 +26,16 @@ async function globalSetup(config: FullConfig): Promise<void> {
   const context = await browser.newContext({baseURL});
   const page = await context.newPage();
 
-  // POST /login stores the connect.sid session cookie in the context automatically.
-  const res = await page.request.post(`${apiURL}/login`, {
-    data: {username, password},
-  });
+  // Login through the UI so XState writes "authorized" to localStorage.
+  // Calling POST /login directly skips the XState transition and leaves
+  // authState.value="unauthorized" in localStorage, causing app redirects to /signin.
+  await page.goto('/signin');
+  await page.getByLabel(/username/i).fill(username);
+  await page.getByLabel(/password/i).fill(password);
+  await page.getByRole('button', {name: /sign in/i}).click();
 
-  if (!res.ok()) {
-    throw new Error(
-      `global-setup: login failed with status ${res.status()}. ` +
-        'Check TEST_USER_USERNAME and TEST_USER_PASSWORD in your .env file.',
-    );
-  }
-
-  // Navigate to app root so the session cookie is bound to the correct origin.
-  await page.goto('/');
+  // Wait for the dashboard grid — confirms auth state is fully written.
+  await page.getByRole('grid').waitFor({state: 'visible'});
 
   await context.storageState({path: path.join(authDir, 'user.json')});
   await browser.close();

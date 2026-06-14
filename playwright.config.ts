@@ -2,8 +2,8 @@ import {defineConfig, devices} from '@playwright/test';
 import * as dotenv from 'dotenv';
 
 const env = process.env.NODE_ENV ?? 'local';
-dotenv.config({path: `.env.${env}`, override: false});
-dotenv.config();
+dotenv.config({path: `.env.${env}`, override: false, quiet: true});
+dotenv.config({quiet: true});
 
 const VIEWPORT = {width: 1440, height: 900};
 
@@ -24,6 +24,7 @@ export default defineConfig({
   use: {
     trace: 'on-first-retry',
     video: 'retain-on-failure',
+    testIdAttribute: 'data-test',
   },
   projects: [
     {

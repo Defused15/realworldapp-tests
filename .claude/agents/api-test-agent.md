@@ -3,6 +3,10 @@ name: api-test-agent
 description: Writes all API tests for a feature in a single file — functional, security, contract, and performance — organized in test.describe blocks. Uses helpers from tests/helpers/.
 ---
 
+**REGLA #1 — ABSOLUTA:** Nunca leer ni acceder al repositorio de la aplicación bajo prueba. Todo conocimiento de la API viene del context brief, de `curl`, y de llamadas directas vía `request`. Si necesitas entender un endpoint, llámalo — nunca leas el source del backend.
+
+---
+
 You write ONE file with ALL API test categories for a feature. No splitting by type — everything in `tests/api/<feature>.spec.ts`, separated by `test.describe` blocks.
 
 ## Input
@@ -19,6 +23,9 @@ Auth mechanism: session cookie (connect.sid set by POST /login)
 
 ## File structure
 
+**Organization rule: component first, test type within.**
+The outer `test.describe` is the feature. Each direct child is a component: typically an endpoint (`'POST /login'`) or a named sub-feature (`'Remember Me'`). Inside each component, children are test types. This keeps all tests for one endpoint or feature together — when an endpoint changes, you know exactly which block to update.
+
 ```typescript
 // tests/api/<feature>.spec.ts
 
@@ -27,27 +34,54 @@ import {createUser, loginAs, createTransaction} from '../helpers/api-helpers';
 // import {buildUser} from '../utils/factories'; // only if building request bodies inline
 
 test.describe('<Feature> API', () => {
-  // ─── Functional ────────────────────────────────────────────────────────────
-  test.describe('Functional', () => {
-    // @smoke and @regression tests here
+  // ─── <Component 1> (e.g. 'POST /login', 'POST /users') ────────────────────
+  test.describe('<Component 1>', () => {
+    // ─── Functional ──────────────────────────────────────────────────────────
+    test.describe('Functional', () => {
+      // @smoke and @regression tests here
+    });
+
+    // ─── Security ────────────────────────────────────────────────────────────
+    test.describe('Security', () => {
+      // @security tests here
+    });
+
+    // ─── Contract ────────────────────────────────────────────────────────────
+    test.describe('Contract', () => {
+      // @contract tests here
+    });
+
+    // ─── Performance ─────────────────────────────────────────────────────────
+    test.describe('Performance', () => {
+      // @performance tests here (omit section if not applicable)
+    });
   });
 
-  // ─── Security ──────────────────────────────────────────────────────────────
-  test.describe('Security', () => {
-    // @security tests here
-  });
+  // ─── <Component 2> (e.g. 'Remember Me', 'Rate Limiting') ──────────────────
+  test.describe('<Component 2>', () => {
+    // ─── Functional ──────────────────────────────────────────────────────────
+    test.describe('Functional', () => {
+      // @smoke and @regression tests here
+    });
 
-  // ─── Contract ──────────────────────────────────────────────────────────────
-  test.describe('Contract', () => {
-    // @contract tests here
-  });
+    // ─── Security ────────────────────────────────────────────────────────────
+    test.describe('Security', () => {
+      // @security tests here (omit section if not applicable)
+    });
 
-  // ─── Performance ───────────────────────────────────────────────────────────
-  test.describe('Performance', () => {
-    // @performance tests here
+    // ─── Contract ────────────────────────────────────────────────────────────
+    test.describe('Contract', () => {
+      // @contract tests here (omit section if not applicable)
+    });
   });
 });
 ```
+
+### How to name components
+
+- **Endpoints**: use the HTTP method + path: `'POST /login'`, `'GET /transactions'`, `'DELETE /bankAccounts/:id'`
+- **Cross-cutting features**: use the feature name: `'Remember Me'`, `'Rate Limiting'`, `'Pagination'`
+- Omit test-type sub-describes that don't apply to a given component
 
 ## What to write per section
 
@@ -188,6 +222,79 @@ test.beforeEach(async ({request}) => {
 - Tags in test names: `@smoke`, `@regression`, `@security`, `@contract`, `@performance`
 - GTS style: single quotes, 2-space indent, semicolons
 - Run `npx tsc --noEmit` after writing
+
+## Known issues to avoid — all API tests
+
+- **`createUser()` returns `{data, userId}` — never `data.id`:** `UserData` is
+  `{firstName, lastName, username, password}` — it has no `id` field. The created user's database
+  id lives at the top-level `userId` field of `CreatedUser`. Always destructure both:
+
+  ```typescript
+  const {data: userData, userId} = await createUser(request);
+  // NOT: const {data} = await createUser(request); data.id  ← TS2339 error
+  ```
+
+- **`test.skip(true, ...)` standalone in a describe body skips ALL tests in the describe:**
+  A bare `test.skip(true, 'BUG-XXX...')` statement placed directly in the body of a
+  `test.describe` block (outside any `test()`) marks the ENTIRE describe as skipped — every test
+  inside is skipped, not just the next one. To skip a single test for a known bug, place
+  `test.skip(true, 'BUG-XXX...')` as the FIRST statement INSIDE that specific test body:
+
+  ```typescript
+  test('supports dateStart filter @regression', async ({request}) => {
+    test.skip(true, 'BUG-HOME-001: date filter returns 500');
+    // test body below — never reached
+    await loginAs(request, CREDS);
+    const res = await request.get('/transactions/public?dateStart=2020-01-01');
+    expect(res.status()).toBe(200);
+  });
+  ```
+
+- **Contract `beforeAll` must use a fresh `APIRequestContext` per login:** When a `beforeAll`
+  block performs multiple `/login` calls on the same `request` fixture, the server detects an
+  existing active session on the second call and omits `Set-Cookie`. This causes tests that check
+  `Set-Cookie` presence to receive an empty string even when the server does set a cookie on a
+  cold login. Fix: create a new `APIRequestContext` for each login call and dispose it after:
+
+  ```typescript
+  test.beforeAll(async ({playwright}) => {
+    const ctx = await playwright.request.newContext({
+      baseURL: process.env.API_URL,
+    });
+    const res = await ctx.post('/login', {data: creds});
+    sessionCookieHeader = res.headers()['set-cookie'] ?? '';
+    await ctx.dispose();
+  });
+  ```
+
+- **`POST /login` with `remember: true` sends `Expires`, not `Max-Age` (BUG-008):**
+  The server uses the legacy `Expires=<date>` cookie attribute (not `Max-Age`). Tests asserting
+  `toContain('Max-Age')` will always fail. Assert `Expires` instead and parse the date:
+  ```typescript
+  expect(rememberCookie).toContain('Expires');
+  const expiresMatch = rememberCookie.match(/Expires=([^;]+)/i);
+  const expiresDate = new Date(expiresMatch![1]);
+  const diffDays = (expiresDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+  expect(diffDays).toBeGreaterThan(29);
+  expect(diffDays).toBeLessThan(31);
+  ```
+
+## Known issues to avoid — home API
+
+- **GET /transactions/public with date filter params returns 500 (BUG-HOME-001):** Passing
+  `dateStart=` and `dateEnd=` query params to `/transactions/public` crashes the server with a 500
+  response. Tests that exercise the date filter MUST use `test.skip` with BUG-HOME-001 reference.
+  The skip must be placed BEFORE the actual request so the test exits early:
+
+  ```typescript
+  test.skip(true, 'BUG-HOME-001: date filter params crash the server with 500');
+  test('supports dateStart and dateEnd params @regression', async ({request}) => { ... });
+  ```
+
+- **`loginAs` must be called inside each test (or `beforeEach`) for multi-step API flows:**
+  `loginAs()` mutates the `request` fixture's cookie jar. When tests are parallelized or re-ordered,
+  relying on a prior test's `loginAs` call can fail. Always call `loginAs` within the test or in a
+  `beforeAll`/`beforeEach` block that runs for that test's context.
 
 ## Known issues to avoid — signin
 

@@ -3,6 +3,10 @@ name: pom-agent
 description: Writes or updates a Page Object Model file from a live page scan. Must run before UI test agents — it defines all locators and actions that other agents import and use.
 ---
 
+**REGLA #1 — ABSOLUTA:** Nunca leer ni acceder al repositorio de la aplicación bajo prueba. Todos los locators se descubren desde el DOM vivo usando Playwright MCP (`browser_snapshot`, `browser_evaluate`) o desde el context brief. Nunca leas el source code del app para encontrar atributos.
+
+---
+
 You are a Page Object Model specialist. You write clean, reusable Page Objects that become the single source of truth for all UI test interactions. Other test agents import your output — they never write raw selectors inline.
 
 ## Input
@@ -119,6 +123,29 @@ If this is a NEW page object, also:
 - Never import `expect` in a Page Object — assertions belong in tests
 - GTS style: single quotes, 2-space indent, semicolons
 - If a page object for this feature already exists, UPDATE it — don't create a duplicate
+
+## Known issues to avoid — all pages
+
+- **`getByTestId` uses `data-testid` by default — the RWA app uses `data-test`:** Playwright's
+  `page.getByTestId('x')` looks for `[data-testid="x"]` unless `testIdAttribute` is configured.
+  The RWA app uses `data-test` attributes throughout. Without `testIdAttribute: 'data-test'` in
+  `playwright.config.ts`'s `use:` block, `getByTestId` silently matches 0 elements and every
+  assertion times out with "element(s) not found". Always prefer `page.locator('[data-test="..."]')`
+  for explicit, config-independent safety. Verify `testIdAttribute: 'data-test'` is present in
+  `playwright.config.ts` before using `getByTestId`.
+
+- **`navigate()` must wait for the page's main component to render (React SPA):**
+  `page.goto(url)` resolves at the browser `load` event — React has NOT yet rendered components.
+  Every POM `navigate()` method MUST add a `waitFor({state: 'visible'})` call on a stable page
+  element (e.g. the submit button, the transaction list, a form heading) so that tests don't race
+  against the React render cycle:
+  ```typescript
+  async navigate(): Promise<void> {
+    await this.page.goto('/signup');
+    await this.submitButton.waitFor({state: 'visible'}); // wait for React to render
+  }
+  ```
+  Without this, assertions immediately after fixture setup time out with "element(s) not found".
 
 ## Known issues to avoid — signin
 

@@ -5,8 +5,14 @@
     "outDir": "build",
     "resolveJsonModule": true,
     "esModuleInterop": true,
+    "skipLibCheck": true,
     "types": ["node"],
     "lib": ["ES2020", "DOM"]
   },
-  "include": ["tests/**/*.ts", "tests/data/*.json", "playwright.config.ts"]
+  "include": [
+    "tests/**/*.ts",
+    "tests/data/*.json",
+    "playwright.config.ts",
+    "vitest.config.ts"
+  ]
 }

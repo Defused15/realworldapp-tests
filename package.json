@@ -23,6 +23,9 @@
     "test:performance": "playwright test --grep @performance",
     "test:staging": "NODE_ENV=staging playwright test",
     "test:production": "NODE_ENV=production playwright test",
+    "test:db": "vitest run",
+    "test:db:watch": "vitest",
+    "test:all": "npm run test:db && playwright test",
     "db:seed": "npx tsx tests/scripts/seed.ts",
     "db:reset": "npx tsx tests/scripts/teardown.ts"
   },
@@ -41,16 +44,19 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.0",
-    "tsx": "^4.19.0",
     "@faker-js/faker": "^9.0.0",
     "@playwright/test": "^1.60.0",
     "@types/node": "^22.7.5",
+    "@types/pg": "^8.20.0",
     "dotenv": "^17.4.2",
     "eslint-plugin-playwright": "^2.10.4",
     "gts": "^7.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
+    "pg": "^8.21.0",
     "prettier": "^3.8.4",
-    "typescript": "^5.6.3"
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.8"
   }
 }

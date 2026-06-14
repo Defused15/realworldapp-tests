@@ -3,6 +3,10 @@ name: support-agent
 description: Generates and maintains all test support infrastructure — fixtures, helpers, global-setup, global-teardown, and base page. Run once via setup-project, or invoked by gen-test when files are missing. Never writes test files.
 ---
 
+**REGLA #1 — ABSOLUTA:** Nunca leer ni acceder al repositorio de la aplicación bajo prueba. Todo lo que necesitas viene del context brief y de los archivos dentro de `realworldapp-tests/`.
+
+---
+
 You generate and maintain the support layer that all test agents depend on. Your job is everything that is NOT a test file and NOT a Page Object.
 
 ## What you own
@@ -372,6 +376,37 @@ Check each file. If it already exists with real content (no TODOs, no stubs), sk
 - **JSON files must be in `tsconfig.json` include:** If `tsconfig.json`'s `include` array is
   scoped narrowly (e.g. only `["src"]`), add `"tests/**"` or `"tests/data/*.json"` so that
   JSON imports in test files resolve correctly under `"resolveJsonModule": true`.
+
+## Known issues to avoid — global-setup (client-side-auth SPAs)
+
+- **Capture `storageState` after a REAL UI login, not an API-only login (XState/localStorage gotcha):**
+  The RWA frontend uses an **XState** auth machine and persists its auth state in `localStorage`
+  under the key `authState`. An API-only login (`POST /login`) sets the session **cookie** but
+  never writes `authState.value = "authorized"` to localStorage. So when `storageState` is built
+  from an API login, the app's XState machine boots as `"unauthorized"` and **redirects every page
+  to `/signin`** — every authenticated UI test then hangs/timeouts waiting for content that never
+  renders.
+
+  **Fix / rule:** For SPAs that store auth state client-side (XState / Redux / localStorage),
+  `global-setup.ts` must log in **through the UI** and wait for an authenticated element before
+  saving state:
+
+  ```typescript
+  await page.goto('/signin');
+  await page.getByLabel(/username/i).fill(username);
+  await page.getByLabel(/password/i).fill(password);
+  await page.getByRole('button', {name: /sign in/i}).click();
+  // wait for an authenticated-page element (e.g. the transaction grid) so XState
+  // has committed authState="authorized" to localStorage before we snapshot:
+  await page.waitForURL(/\/$/);
+  await page
+    .locator('[data-test="transaction-list"]')
+    .waitFor({state: 'visible'});
+  await context.storageState({path: path.join(authDir, 'user.json')});
+  ```
+
+  An API login only sets the session cookie; the UI login is what writes the client-side auth
+  state. Use the UI-login path for this project, not the `POST /login` block.
 
 ## Rules
 

@@ -580,6 +580,257 @@ test.describe('signin API', () => {
     });
   });
 
+  // ─── Remember Me ───────────────────────────────────────────────────────────
+  test.describe('Remember Me', () => {
+    // ── Functional ────────────────────────────────────────────────────────────
+    test.describe('Functional', () => {
+      test('POST /login with remember:true returns 200 and Set-Cookie contains connect.sid @smoke', async ({
+        request,
+      }) => {
+        const res = await request.post('/login', {
+          data: {
+            username: process.env.TEST_USER_USERNAME!,
+            password: process.env.TEST_USER_PASSWORD!,
+            remember: true,
+          },
+        });
+        expect(res.status()).toBe(200);
+        const setCookie = res.headers()['set-cookie'] ?? '';
+        expect(setCookie).toContain('connect.sid');
+      });
+
+      test('POST /login with remember:true Set-Cookie contains Expires @smoke', async ({
+        request,
+      }) => {
+        const res = await request.post('/login', {
+          data: {
+            username: process.env.TEST_USER_USERNAME!,
+            password: process.env.TEST_USER_PASSWORD!,
+            remember: true,
+          },
+        });
+        expect(res.status()).toBe(200);
+        const setCookie = res.headers()['set-cookie'] ?? '';
+        expect(setCookie).toContain('Expires');
+      });
+
+      test('POST /login with remember:true Expires is approximately 30 days from now @regression', async ({
+        request,
+      }) => {
+        const res = await request.post('/login', {
+          data: {
+            username: process.env.TEST_USER_USERNAME!,
+            password: process.env.TEST_USER_PASSWORD!,
+            remember: true,
+          },
+        });
+        expect(res.status()).toBe(200);
+        const setCookie = res.headers()['set-cookie'] ?? '';
+        const expiresMatch = setCookie.match(/Expires=([^;]+)/i);
+        expect(expiresMatch).toBeTruthy();
+        const expiresMs = new Date(expiresMatch![1]).getTime();
+        const thirtyDaysMs = Date.now() + 30 * 24 * 60 * 60 * 1000;
+        expect(Math.abs(expiresMs - thirtyDaysMs)).toBeLessThan(
+          24 * 60 * 60 * 1000,
+        );
+      });
+
+      test('POST /login without remember returns 200 and Set-Cookie has no Max-Age @smoke', async ({
+        request,
+      }) => {
+        const res = await request.post('/login', {
+          data: {
+            username: process.env.TEST_USER_USERNAME!,
+            password: process.env.TEST_USER_PASSWORD!,
+          },
+        });
+        expect(res.status()).toBe(200);
+        const setCookie = res.headers()['set-cookie'] ?? '';
+        expect(setCookie).not.toContain('Max-Age');
+      });
+
+      test('POST /login without remember Set-Cookie has no Expires @regression', async ({
+        request,
+      }) => {
+        const res = await request.post('/login', {
+          data: {
+            username: process.env.TEST_USER_USERNAME!,
+            password: process.env.TEST_USER_PASSWORD!,
+          },
+        });
+        expect(res.status()).toBe(200);
+        const setCookie = res.headers()['set-cookie'] ?? '';
+        expect(setCookie).not.toContain('Expires');
+      });
+
+      test('POST /login with remember:false returns 200 and Set-Cookie has no Max-Age @regression', async ({
+        request,
+      }) => {
+        const res = await request.post('/login', {
+          data: {
+            username: process.env.TEST_USER_USERNAME!,
+            password: process.env.TEST_USER_PASSWORD!,
+            remember: false,
+          },
+        });
+        expect(res.status()).toBe(200);
+        const setCookie = res.headers()['set-cookie'] ?? '';
+        // remember:false is treated the same as omitted — session cookie, no Max-Age
+        expect(setCookie).not.toContain('Max-Age');
+      });
+    });
+
+    // ── Security ──────────────────────────────────────────────────────────────
+    test.describe('Security', () => {
+      test('POST /login with bad credentials and remember:true returns 401 @security', async ({
+        request,
+      }) => {
+        const res = await request.post('/login', {
+          data: {
+            username: process.env.TEST_USER_USERNAME!,
+            password: 'completely-wrong-password-xyz!',
+            remember: true,
+          },
+        });
+        expect(res.status()).toBe(401);
+        // Must not set a persistent cookie on failed auth
+        const setCookie = res.headers()['set-cookie'] ?? '';
+        expect(setCookie).not.toContain('Max-Age');
+      });
+
+      test('POST /login bad credentials + remember:true does not set Expires @security', async ({
+        request,
+      }) => {
+        const res = await request.post('/login', {
+          data: {
+            username: process.env.TEST_USER_USERNAME!,
+            password: 'completely-wrong-password-xyz!',
+            remember: true,
+          },
+        });
+        expect(res.status()).toBe(401);
+        const setCookie = res.headers()['set-cookie'] ?? '';
+        expect(setCookie).not.toContain('Expires');
+      });
+
+      test('POST /login SQL injection in username with remember:true returns 401 @security', async ({
+        request,
+      }) => {
+        const res = await request.post('/login', {
+          data: {
+            username: "' OR '1'='1",
+            password: 'anything',
+            remember: true,
+          },
+        });
+        // Must not authenticate — injection must not bypass auth
+        expect(res.status()).toBe(401);
+      });
+
+      test('POST /login SQL injection with remember:true does not set Max-Age @security', async ({
+        request,
+      }) => {
+        const res = await request.post('/login', {
+          data: {
+            username: "' OR '1'='1",
+            password: 'anything',
+            remember: true,
+          },
+        });
+        expect(res.status()).not.toBe(200);
+        const setCookie = res.headers()['set-cookie'] ?? '';
+        expect(setCookie).not.toContain('Max-Age');
+      });
+    });
+
+    // ── Contract ──────────────────────────────────────────────────────────────
+    test.describe('Contract', () => {
+      let rememberBody!: Record<string, unknown>;
+      let rememberUser!: Record<string, unknown>;
+      let sessionBody!: Record<string, unknown>;
+      let rememberSetCookie!: string;
+      let sessionSetCookie!: string;
+
+      test.beforeAll(async ({playwright}) => {
+        const creds = {
+          username: process.env.TEST_USER_USERNAME!,
+          password: process.env.TEST_USER_PASSWORD!,
+        };
+
+        // Fresh context per login — reusing the same context after the first login
+        // means the server sees an existing session and omits Set-Cookie on subsequent calls.
+        const rememberCtx = await playwright.request.newContext({
+          baseURL: process.env.API_URL,
+        });
+        const rememberRes = await rememberCtx.post('/login', {
+          data: {...creds, remember: true},
+        });
+        rememberBody = await rememberRes.json();
+        rememberUser = rememberBody['user'] as Record<string, unknown>;
+        rememberSetCookie = rememberRes.headers()['set-cookie'] ?? '';
+        await rememberCtx.dispose();
+
+        const sessionCtx = await playwright.request.newContext({
+          baseURL: process.env.API_URL,
+        });
+        const sessionRes = await sessionCtx.post('/login', {data: creds});
+        sessionBody = await sessionRes.json();
+        sessionSetCookie = sessionRes.headers()['set-cookie'] ?? '';
+        await sessionCtx.dispose();
+      });
+
+      test('POST /login remember:true response schema has "user" key @contract', () => {
+        expect(rememberBody).toHaveProperty('user');
+      });
+
+      test('POST /login remember:true user.id is a string @contract', () => {
+        expect(typeof rememberUser['id']).toBe('string');
+      });
+
+      test('POST /login remember:true user.username is a non-empty string @contract', () => {
+        expect(typeof rememberUser['username']).toBe('string');
+        expect((rememberUser['username'] as string).length).toBeGreaterThan(0);
+      });
+
+      test('POST /login remember:true user.balance is a number @contract', () => {
+        expect(typeof rememberUser['balance']).toBe('number');
+      });
+
+      test('POST /login remember:true response schema is unchanged from session login @contract', () => {
+        // Both responses must have the same top-level keys
+        const rememberKeys = Object.keys(rememberBody).sort();
+        const sessionKeys = Object.keys(sessionBody).sort();
+        expect(rememberKeys).toEqual(sessionKeys);
+      });
+
+      test('POST /login remember:true user object fields match session login @contract', () => {
+        const rememberUserKeys = Object.keys(rememberUser).sort();
+        const sessionUserKeys = Object.keys(
+          sessionBody['user'] as Record<string, unknown>,
+        ).sort();
+        expect(rememberUserKeys).toEqual(sessionUserKeys);
+      });
+
+      test('POST /login Set-Cookie present for remember:true @contract', () => {
+        expect(rememberSetCookie).toContain('connect.sid');
+      });
+
+      test('POST /login Set-Cookie present for session login (no remember) @contract', () => {
+        expect(sessionSetCookie).toContain('connect.sid');
+      });
+
+      test('POST /login remember:true Set-Cookie has Expires (not Max-Age) @contract', () => {
+        // App sends Expires attribute (legacy format), not Max-Age.
+        expect(rememberSetCookie).toContain('Expires');
+        expect(rememberSetCookie).not.toContain('Max-Age');
+      });
+
+      test('POST /login session login Set-Cookie has no Max-Age @contract', () => {
+        expect(sessionSetCookie).not.toContain('Max-Age');
+      });
+    });
+  });
+
   // ─── Performance ───────────────────────────────────────────────────────────
   test.describe('Performance', () => {
     test('POST /login responds within SLA @performance', async ({request}) => {
