@@ -8,10 +8,11 @@ name: Pipeline (gated)
 #    └─ contract → api → db → ui → performance → zap     (need the app)
 #                                                  └─ report (always)
 #
-# The app-dependent gates are guarded by `vars.APP_IMAGE`: until the app image is
-# published to GHCR (see BACKLOG.md — deferred "docker" piece), they are skipped
-# and CI stays green on `quality` + `security-sca`. Wire the image in one place:
-# .github/actions/setup-app/action.yml.
+# The app-dependent gates are guarded by `vars.APP_IMAGE`: when unset they are
+# skipped and CI stays green on `quality` + `security-sca`. Set it to the GHCR
+# image (e.g. ghcr.io/defused15/rwa-app:latest, published by the app repo's
+# build-push.yml) to activate them. App + postgres are booted as one compose
+# stack in .github/actions/setup-app/ (action.yml + app.ci.yml).
 
 on:
   pull_request:
@@ -62,17 +63,8 @@ jobs:
     needs: quality
     if: ${{ vars.APP_IMAGE != '' }}
     runs-on: ubuntu-latest
-    services:
-      postgres: &postgres
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: rwa_dev
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd pg_isready --health-interval 10s
-          --health-timeout 5s --health-retries 5
+    # postgres is booted by setup-app via app.ci.yml (app image + DB are one
+    # compose stack), not as a GitHub Actions service.
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
       - uses: actions/checkout@v4
@@ -84,7 +76,6 @@ jobs:
     needs: contract
     if: ${{ vars.APP_IMAGE != '' }}
     runs-on: ubuntu-latest
-    services: {postgres: *postgres}
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
       - uses: actions/checkout@v4
@@ -102,12 +93,11 @@ jobs:
     needs: api
     if: ${{ vars.APP_IMAGE != '' }}
     runs-on: ubuntu-latest
-    services: {postgres: *postgres}
     env:
       APP_IMAGE: '${{ vars.APP_IMAGE }}'
       DB_HOST: localhost
-      DB_PORT: '5432'
-      DB_NAME: rwa_dev
+      DB_PORT: '5433' # app.ci.yml publishes postgres on host 5433
+      DB_NAME: rwa_test # the CI compose runs the app against the rwa_test DB
       DB_USER: postgres
       DB_PASSWORD: postgres
     steps:
@@ -125,7 +115,6 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2]
-    services: {postgres: *postgres}
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
       - uses: actions/checkout@v4
@@ -147,7 +136,6 @@ jobs:
     needs: ui
     if: ${{ vars.APP_IMAGE != '' }}
     runs-on: ubuntu-latest
-    services: {postgres: *postgres}
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
       - uses: actions/checkout@v4
@@ -160,7 +148,6 @@ jobs:
     needs: ui
     if: ${{ vars.APP_IMAGE != '' }}
     runs-on: ubuntu-latest
-    services: {postgres: *postgres}
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
       - uses: actions/checkout@v4
