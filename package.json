@@ -31,6 +31,8 @@
     "test:all": "npm run test:unit && npm run test:db && playwright test",
     "db:seed": "npx tsx tests/scripts/seed.ts",
     "db:reset": "npx tsx tests/scripts/teardown.ts",
+    "flaky:summary": "npx tsx tests/scripts/flaky-summary.ts",
+    "test:quarantine": "playwright test --grep @quarantine",
     "perf": "k6 run perf/k6/scenarios/${SCENARIO:-home}.js",
     "perf:smoke": "PROFILE=smoke npm run perf",
     "perf:load": "PROFILE=load npm run perf",

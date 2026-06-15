@@ -201,18 +201,18 @@ docs/
 
 ## 📋 Gaps enterprise restantes (priorizados)
 
-| Gap                                                                                 | Impacto | Costo                          |
-| ----------------------------------------------------------------------------------- | ------- | ------------------------------ |
-| **Flaky-test detection / quarantine** + retry analytics                             | Alto    | Medio                          |
-| **Contract testing real (Pact)** consumer-driven, no solo schema                    | Medio   | Medio                          |
-| **Ephemeral environments por PR** (preview deploys)                                 | Alto    | Alto (atado a docker diferido) |
-| **CI sharding** (matrix `--shard`) — patrón listo en test-strategy, falta activarlo | Medio   | Bajo                           |
-| **OpenTelemetry / test observability** (trazas de tests)                            | Medio   | Alto                           |
-| **SonarQube / coverage gates**                                                      | Medio   | Medio                          |
-| **semantic-release + conventional commits + CHANGELOG**                             | Medio   | Bajo                           |
-| **Notificaciones** (Slack/PagerDuty on failure)                                     | Bajo    | Bajo                           |
-| **Chaos/resilience testing**                                                        | Bajo    | Alto                           |
-| **devcontainer / Dockerized test runner**                                           | Medio   | Medio                          |
+| Gap                                                                                                                                                                                                              | Impacto | Costo                          |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------------------------------ |
+| ~~**Flaky-test detection / quarantine** + retry analytics~~ — ✅ HECHO: `@quarantine` tag excluido de gates + job non-gating, `flaky:summary` parsea el JSON report → CI step summary (retries=2 ya configurado) | Alto    | Medio                          |
+| **Contract/property testing black-box (Schemathesis desde OpenAPI)** — Pact descartado: requiere ownership del consumer + provider states en el repo del app, viola black-box (REGLA #1)                         | Medio   | Medio                          |
+| **Ephemeral environments por PR** (preview deploys)                                                                                                                                                              | Alto    | Alto (atado a docker diferido) |
+| ~~**CI sharding** (matrix `--shard`)~~ — ✅ HECHO: UI gate corre `shard 1/2` + `2/2` en `pipeline.yml`                                                                                                           | Medio   | Bajo                           |
+| **OpenTelemetry / test observability** (trazas de tests)                                                                                                                                                         | Medio   | Alto                           |
+| **SonarQube / coverage gates**                                                                                                                                                                                   | Medio   | Medio                          |
+| **semantic-release + conventional commits + CHANGELOG**                                                                                                                                                          | Medio   | Bajo                           |
+| **Notificaciones** (Slack/PagerDuty on failure)                                                                                                                                                                  | Bajo    | Bajo                           |
+| **Chaos/resilience testing**                                                                                                                                                                                     | Bajo    | Alto                           |
+| **devcontainer / Dockerized test runner**                                                                                                                                                                        | Medio   | Medio                          |
 
 ---
 

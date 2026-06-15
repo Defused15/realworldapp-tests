@@ -136,15 +136,24 @@ test.describe('signin API', () => {
 
 ## Tags
 
-| Tag            | Purpose               | CI trigger                |
-| -------------- | --------------------- | ------------------------- |
-| `@smoke`       | Happy path            | Every PR + every push     |
-| `@regression`  | Edge + negative       | Push to main + nightly    |
-| `@security`    | Auth, IDOR, injection | Push to main + weekly     |
-| `@contract`    | API schema validation | Every PR + nightly        |
-| `@a11y`        | WCAG 2.1 AA           | Weekly + PRs touching ui/ |
-| `@visual`      | Screenshot diff       | Nightly only              |
-| `@performance` | Response time SLAs    | Nightly                   |
+| Tag            | Purpose               | CI trigger                 |
+| -------------- | --------------------- | -------------------------- |
+| `@smoke`       | Happy path            | Every PR + every push      |
+| `@regression`  | Edge + negative       | Push to main + nightly     |
+| `@security`    | Auth, IDOR, injection | Push to main + weekly      |
+| `@contract`    | API schema validation | Every PR + nightly         |
+| `@a11y`        | WCAG 2.1 AA           | Weekly + PRs touching ui/  |
+| `@visual`      | Screenshot diff       | Nightly only               |
+| `@performance` | Response time SLAs    | Nightly                    |
+| `@quarantine`  | Known-flaky, isolated | Non-gating job (push only) |
+
+**Quarantine workflow:** when a test is intermittently flaky, tag it `@quarantine`
+(in addition to its existing tags). The gating jobs run with `--grep-invert @quarantine`
+so it can no longer break the build, while a separate non-gating `quarantine` job in
+`pipeline.yml` still runs it for visibility. `npm run flaky:summary` parses the Playwright
+JSON report and lists any test that only passed on retry (Playwright `status: 'flaky'`) into
+the CI step summary — use it to decide what to quarantine. Run quarantined tests locally with
+`npm run test:quarantine`.
 
 ## CI Branch strategy
 
