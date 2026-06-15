@@ -1,0 +1,26 @@
+# .gitleaks.toml
+# Secret scanning config. Extends gitleaks' default ruleset and allowlists the
+# known, intentional test credentials in this repo (seed user, example envs).
+# Run: npm run security:secrets
+
+title = "realworldapp-tests gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Intentional test-only credentials and fixtures"
+regexes = [
+  # Seed user password used throughout the suite — public, throwaway.
+  '''s3cret''',
+  # Placeholder passwords in example env files.
+  '''stagingpassword''',
+  '''productionpassword''',
+]
+paths = [
+  '''\.env\.example''',
+  '''\.env\.staging''',
+  '''\.env\.production''',
+  '''tests/data/.*\.json''',
+  '''package-lock\.json''',
+]

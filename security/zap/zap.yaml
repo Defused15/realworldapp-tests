@@ -1,0 +1,65 @@
+env:
+  contexts:
+  - excludePaths: []
+    name: baseline
+    urls:
+    - http://localhost:3000
+  parameters:
+    failOnError: true
+    progressToStdout: false
+jobs:
+- parameters:
+    enableTags: false
+    maxAlertsPerRule: 10
+  type: passiveScan-config
+- parameters:
+    maxDuration: 1
+    url: http://localhost:3000
+  type: spider
+- parameters:
+    maxDuration: 0
+  type: passiveScan-wait
+- parameters:
+    format: Long
+    summaryFile: /home/zap/zap_out.json
+  rules:
+  - action: FAIL
+    customMessage: ''
+    id: 10202
+  - action: FAIL
+    customMessage: ''
+    id: 40012
+  - action: FAIL
+    customMessage: ''
+    id: 40014
+  - action: FAIL
+    customMessage: ''
+    id: 40018
+  - action: FAIL
+    customMessage: ''
+    id: 90019
+  - action: FAIL
+    customMessage: ''
+    id: 90020
+  - action: IGNORE
+    customMessage: ''
+    id: 10096
+  - action: WARN
+    customMessage: ''
+    id: 10027
+  - action: WARN
+    customMessage: ''
+    id: 10015
+  - action: WARN
+    customMessage: ''
+    id: 10020
+  - action: WARN
+    customMessage: ''
+    id: 10021
+  - action: WARN
+    customMessage: ''
+    id: 10035
+  - action: WARN
+    customMessage: ''
+    id: 10038
+  type: outputSummary

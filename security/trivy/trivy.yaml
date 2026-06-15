@@ -1,0 +1,30 @@
+# security/trivy/trivy.yaml
+# Trivy config for SCA / dependency / config scanning of THIS repo (and the app
+# Docker image when available). Run: npm run security:deps
+#
+# Docs: https://aquasecurity.github.io/trivy
+
+severity:
+  - HIGH
+  - CRITICAL
+
+scan:
+  scanners:
+    - vuln
+    - secret
+    - misconfig
+
+# Don't fail on unfixed vulns (informational), only on those with a fix.
+vulnerability:
+  ignore-unfixed: true
+
+# Exit non-zero when a HIGH/CRITICAL with a fix is found → gates the build.
+exit-code: 1
+
+# Noise reduction.
+skip-dirs:
+  - node_modules
+  - build
+  - playwright-report
+  - test-results
+  - .playwright-mcp
