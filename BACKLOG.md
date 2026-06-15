@@ -25,7 +25,33 @@ Ver `.github/actions/playwright-report-hub/action.yml` en el proyecto `qaplaygro
 Notas de la revisión de arquitectura para llevar el repo a "portfolio-grade completo".
 Todo lo de abajo está **pendiente** — capturado para retomar después.
 
-## 0. Decisión tomada: arrancar por CI gates + levantar app
+## 0. ✅ RESUELTO (2026-06-15) — app en CI vía producer/consumer GHCR
+
+**Hecho.** El bloqueador #1 (meter la app a CI) está implementado con el patrón
+enterprise **producer/consumer**, black-box (REGLA #1 intacta: CI consume imagen
+opaca, nunca el source):
+
+- **Producer** — repo del app (`Defused15/cypress-realworld-app`):
+  - Dockerfile: nuevo target **`ci`** (source horneado; corre como 2 servidores
+    web:3000 + api:3001, a diferencia de `prod` que colapsa todo a 3001).
+  - `.github/workflows/build-push.yml`: en cada push a `develop` buildea el target
+    `ci` y publica `ghcr.io/defused15/rwa-app:latest` + `:sha` con `GITHUB_TOKEN`
+    (sin PAT manual, nunca se vence). Package **público** → pull sin auth.
+- **Consumer** — este repo:
+  - `.github/actions/setup-app/app.ci.yml`: compose CI (postgres + api + web,
+    DB `rwa_test`, postgres publicado en host 5433 para el gate de db-integrity).
+  - `setup-app/action.yml`: stub eliminado → levanta `app.ci.yml`.
+  - `pipeline.yml`: quitados los `services: postgres` por job (el compose es dueño
+    de la DB); gate db → `rwa_test`/`5433`. Gates gated en `vars.APP_IMAGE`.
+  - `vars.APP_IMAGE` = `ghcr.io/defused15/rwa-app:latest` → gates activos.
+
+> Aprendizaje clave: la app son **2 servidores** (vite:3000 + API:3001); el target
+> `prod` no sirve para los tests (un solo origen 3001) y el target `dev` no trae
+> source. Por eso se creó el target `ci`. Detalle abajo conservado como histórico.
+
+---
+
+## 0-bis. (Histórico) Decisión original: arrancar por CI gates + levantar app
 
 Cuando se retome, el punto de partida elegido es **el pipeline de gates secuenciales**
 (desbloquea todo lo demás — sin app corriendo en CI nada más funciona).
@@ -146,11 +172,11 @@ docs/
   perf-reports/         ← nuevo
 ```
 
-## 7. Datos que faltan del usuario para retomar
+## 7. ✅ Datos resueltos (2026-06-15)
 
-- Nombre de la imagen GHCR de la app (ej. `ghcr.io/defused15/rwa-app:latest`).
-- Env vars que la app espera para conectar a Postgres (host/port/db/user/pass).
-- ¿La app ya está publicada como imagen, o hay que hacer el push primero?
+- Imagen GHCR: `ghcr.io/defused15/rwa-app:latest` (target `ci`, pública).
+- Postgres: `postgres/postgres@postgres:5432/rwa_test` (interno); host 5433 para db-integrity.
+- App publicada automáticamente por `build-push.yml` en el repo del app (no hace falta push manual).
 
 ---
 
@@ -170,7 +196,8 @@ docs/
 - **Cross-browser**: proyectos `ui-firefox` / `ui-webkit` (nightly, reusan storageState).
 - **Documentación**: `docs/test-strategy.md` + `docs/adr/` (4 ADRs).
 
-> Pendiente único para activar los gates con app: la parte docker/GHCR (sección 0 arriba).
+> ~~Pendiente único para activar los gates con app: la parte docker/GHCR~~ →
+> **✅ HECHO (2026-06-15)**, ver sección 0 arriba. Gates activos vía producer/consumer GHCR.
 
 ## 📋 Gaps enterprise restantes (priorizados)
 
