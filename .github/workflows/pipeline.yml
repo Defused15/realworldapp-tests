@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0} # gitleaks needs full history
       - name: Gitleaks (secret scan)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env: {GITLEAKS_CONFIG: .gitleaks.toml}
       - name: Trivy (dependencies + misconfig)
         uses: aquasecurity/trivy-action@0.35.0
