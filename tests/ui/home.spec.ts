@@ -2,6 +2,7 @@
 
 import {test, expect} from '../fixtures';
 import AxeBuilder from '@axe-core/playwright';
+import {HomePage} from '../pages/home.page';
 
 const API = process.env.API_URL ?? 'http://localhost:3001';
 
@@ -447,6 +448,64 @@ test.describe('Home', () => {
         // Narrow range should have fewer or equal results than full range
         expect(narrowResults.length).toBeLessThanOrEqual(allResults.length);
       });
+    });
+  });
+
+  // ─── Resilience ──────────────────────────────────────────────────────────────
+  // Black-box "service virtualization": instead of pointing the app at a mock
+  // server (we don't control the app's config — REGLA #1), we inject API faults
+  // at the browser network layer with page.route(). We assert the app shell
+  // SURVIVES the fault (no white-screen / crash) — the app-agnostic invariant.
+  //
+  // NOTE: these use the raw `page` fixture and instantiate HomePage directly —
+  // the `homePage` fixture auto-navigates and waits for the feed grid, which
+  // would conflict with a failing/slow feed route.
+  test.describe('Resilience', () => {
+    test('survives a 500 from the public feed (shell stays, no crash) @resilience', async ({
+      page,
+    }) => {
+      await page.route('**/transactions/public**', route =>
+        route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: '{}',
+        }),
+      );
+      const home = new HomePage(page);
+      await page.goto('/', {waitUntil: 'domcontentloaded'});
+
+      // The sidebar renders from auth state, independent of the feed → it must
+      // remain visible even though the feed failed.
+      await expect(home.userFullName).toBeVisible();
+      await expect(home.newTransactionLink).toBeVisible();
+    });
+
+    test('survives a network abort on the public feed @resilience', async ({
+      page,
+    }) => {
+      await page.route('**/transactions/public**', route =>
+        route.abort('failed'),
+      );
+      const home = new HomePage(page);
+      await page.goto('/', {waitUntil: 'domcontentloaded'});
+
+      await expect(home.userFullName).toBeVisible();
+    });
+
+    test('recovers when the public feed is slow (eventually renders) @resilience', async ({
+      page,
+    }) => {
+      // Delay the feed by 2s, then let the real response through. The app must
+      // not give up — the grid should still appear once data arrives.
+      await page.route('**/transactions/public**', async route => {
+        await new Promise(r => setTimeout(r, 2000));
+        await route.continue();
+      });
+      const home = new HomePage(page);
+      await page.goto('/', {waitUntil: 'domcontentloaded'});
+
+      await expect(home.userFullName).toBeVisible();
+      await expect(home.transactionList).toBeVisible();
     });
   });
 });

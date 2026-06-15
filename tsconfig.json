@@ -11,8 +11,9 @@
   },
   "include": [
     "tests/**/*.ts",
-    "tests/data/*.json",
+    "tests/**/*.json",
     "playwright.config.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "vitest.unit.config.ts"
   ]
 }

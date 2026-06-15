@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RWA Transaction",
+  "description": "Shape of the transaction object returned by GET /transactions/{id}.",
+  "type": "object",
+  "required": [
+    "id",
+    "uuid",
+    "amount",
+    "description",
+    "status",
+    "privacyLevel",
+    "senderId",
+    "receiverId",
+    "createdAt",
+    "modifiedAt"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "uuid": {"type": "string", "format": "uuid"},
+    "amount": {"type": "number"},
+    "description": {"type": "string"},
+    "status": {"type": "string", "enum": ["pending", "complete"]},
+    "requestStatus": {"type": "string"},
+    "privacyLevel": {
+      "type": "string",
+      "enum": ["public", "private", "contacts"]
+    },
+    "senderId": {"type": "string"},
+    "receiverId": {"type": "string"},
+    "senderName": {"type": "string"},
+    "receiverName": {"type": "string"},
+    "likes": {"type": "array"},
+    "comments": {"type": "array"},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "modifiedAt": {"type": "string", "format": "date-time"}
+  }
+}

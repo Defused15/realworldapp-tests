@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RWA User",
+  "description": "Shape of the user object returned by POST /login and POST /users.",
+  "type": "object",
+  "required": [
+    "id",
+    "uuid",
+    "firstName",
+    "lastName",
+    "username",
+    "balance",
+    "defaultPrivacyLevel",
+    "createdAt",
+    "modifiedAt"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "uuid": {"type": "string", "format": "uuid"},
+    "firstName": {"type": "string", "minLength": 1},
+    "lastName": {"type": "string", "minLength": 1},
+    "username": {"type": "string", "minLength": 1},
+    "email": {"type": "string"},
+    "phoneNumber": {"type": "string"},
+    "balance": {"type": "number"},
+    "avatar": {"type": "string"},
+    "defaultPrivacyLevel": {
+      "type": "string",
+      "enum": ["public", "private", "contacts"]
+    },
+    "createdAt": {"type": "string", "format": "date-time"},
+    "modifiedAt": {"type": "string", "format": "date-time"}
+  }
+}

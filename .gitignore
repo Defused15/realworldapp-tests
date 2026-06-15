@@ -12,6 +12,15 @@ node_modules/
 # Build output
 /build/
 
+# Reports & scan output
+/allure-results/
+/allure-report/
+/reports/
+/lighthouse-report/
+/.lighthouseci/
+gitleaks-report.json
+trivy-report.json
+
 # Environment
 .env
 .env.*
@@ -22,3 +31,4 @@ node_modules/
 
 # IDE
 .idea/
+/.stryker-tmp/

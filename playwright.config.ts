@@ -7,6 +7,15 @@ dotenv.config({quiet: true});
 
 const VIEWPORT = {width: 1440, height: 900};
 
+// Cross-browser (Firefox/WebKit) is opt-in so the default run stays fast and
+// Chromium-only. Enable with CROSS_BROWSER=1 (the nightly workflow sets it).
+const crossBrowser = process.env.CROSS_BROWSER === '1';
+const uiUse = {
+  viewport: VIEWPORT,
+  baseURL: process.env.BASE_URL ?? 'http://localhost:3000',
+  storageState: '.playwright/.auth/user.json',
+};
+
 export default defineConfig({
   testDir: './tests',
   snapshotDir: './__snapshots__',
@@ -20,6 +29,8 @@ export default defineConfig({
     ['html'],
     ['list'],
     ['json', {outputFile: 'playwright-report/report.json'}],
+    // Allure: rich, historical reporting. Results → npm run report:allure.
+    ['allure-playwright', {resultsDir: 'allure-results'}],
   ],
   use: {
     trace: 'on-first-retry',
@@ -40,6 +51,24 @@ export default defineConfig({
         storageState: '.playwright/.auth/user.json',
       },
     },
+    // Cross-browser parity — opt-in via CROSS_BROWSER=1 (nightly). storageState
+    // is browser-agnostic so it's reused; @visual excluded (Chromium baselines).
+    ...(crossBrowser
+      ? [
+          {
+            name: 'ui-firefox',
+            testMatch: 'tests/ui/**/*.spec.ts',
+            grepInvert: /@visual/,
+            use: {...devices['Desktop Firefox'], ...uiUse},
+          },
+          {
+            name: 'ui-webkit',
+            testMatch: 'tests/ui/**/*.spec.ts',
+            grepInvert: /@visual/,
+            use: {...devices['Desktop Safari'], ...uiUse},
+          },
+        ]
+      : []),
     {
       name: 'api',
       testMatch: 'tests/api/**/*.spec.ts',

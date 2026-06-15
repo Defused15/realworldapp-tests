@@ -1,0 +1,43 @@
+# observability/docker-compose.observability.yml
+#
+# Local observability stack for k6 performance runs: Prometheus (with the
+# remote-write receiver enabled) + Grafana (datasource + k6 dashboard
+# auto-provisioned). This is OUR tooling — it does NOT run the app under test.
+#
+#   docker compose -f observability/docker-compose.observability.yml up -d
+#   npm run perf:smoke:grafana
+#   open http://localhost:3030   (admin / admin)
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: rwa-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-remote-write-receiver' # accept k6 prometheus-rw output
+      - '--enable-feature=native-histograms' # k6 trend metrics as histograms
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: rwa-grafana
+    depends_on:
+      - prometheus
+    ports:
+      - '3030:3000' # 3030 to avoid clashing with the app on :3000
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  prometheus-data:
+  grafana-data:

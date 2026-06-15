@@ -1,0 +1,82 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "graphTooltip": 1,
+  "title": "k6 Performance (RWA API)",
+  "uid": "k6-rwa",
+  "tags": ["k6", "performance"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "time": {"from": "now-15m", "to": "now"},
+  "refresh": "5s",
+  "templating": {"list": []},
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Active VUs",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}}},
+      "targets": [{"expr": "k6_vus", "legendFormat": "vus"}]
+    },
+    {
+      "type": "stat",
+      "title": "Request rate (req/s)",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+      "targets": [
+        {"expr": "sum(rate(k6_http_reqs_total[1m]))", "legendFormat": "req/s"}
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Error rate (%)",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 0.01}
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(k6_http_req_failed_total[1m])) / sum(rate(k6_http_reqs_total[1m]))",
+          "legendFormat": "error rate"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP request duration (p95 / p99) by endpoint",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 9, "w": 18, "x": 0, "y": 6},
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, endpoint) (rate(k6_http_req_duration[1m])))",
+          "legendFormat": "p95 {{endpoint}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, endpoint) (rate(k6_http_req_duration[1m])))",
+          "legendFormat": "p99 {{endpoint}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Checks pass/fail rate",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 9, "w": 6, "x": 18, "y": 6},
+      "targets": [
+        {"expr": "sum(rate(k6_checks_total[1m]))", "legendFormat": "checks/s"}
+      ]
+    }
+  ]
+}

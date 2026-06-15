@@ -2,6 +2,8 @@
 
 import {test, expect} from '@playwright/test';
 import {loginAs, createUser, createTransaction} from '../helpers/api-helpers';
+import {validateSchema} from '../helpers/schema-helpers';
+import transactionSchema from './schemas/transaction.schema.json';
 import xssPayloads from '../data/xss-payloads.json';
 
 const CREDS = {
@@ -180,6 +182,14 @@ test.describe('transaction API', () => {
         const body = await res.json();
         tx = body.transaction as Record<string, unknown>;
         await ctx.dispose();
+      });
+
+      test('transaction matches the JSON Schema contract @contract', () => {
+        // Single source of truth (schemas/transaction.schema.json) — validates
+        // every field's type/format at once and flags contract drift. The
+        // field-by-field tests below stay as readable, targeted documentation.
+        const {valid, errors} = validateSchema(transactionSchema, tx);
+        expect(valid, errors.join('\n')).toBe(true);
       });
 
       test('transaction.id is a string @contract', () => {

@@ -2,6 +2,8 @@
 
 import {test, expect} from '@playwright/test';
 import {buildUser} from '../utils/factories';
+import {validateSchema} from '../helpers/schema-helpers';
+import userSchema from './schemas/user.schema.json';
 
 test.describe('signin API', () => {
   // ─── Functional ────────────────────────────────────────────────────────────
@@ -428,6 +430,14 @@ test.describe('signin API', () => {
 
     test('POST /login response has "user" key @contract', () => {
       expect(loginBody).toHaveProperty('user');
+    });
+
+    test('POST /login user matches the JSON Schema contract @contract', () => {
+      // One schema validates every field's type/format/enum at once
+      // (schemas/user.schema.json). The targeted checks below remain as
+      // human-readable documentation of the key fields.
+      const {valid, errors} = validateSchema(userSchema, loginUser);
+      expect(valid, errors.join('\n')).toBe(true);
     });
 
     test('POST /login user.id is present @contract', () => {
