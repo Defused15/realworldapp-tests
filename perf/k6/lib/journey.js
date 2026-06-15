@@ -7,10 +7,7 @@
 
 import http from 'k6/http';
 import {check, group} from 'k6';
-import {BASE, USER, JSON_HEADERS} from './config.js';
-
-// Seed user id (Heath93 / uBmeaz5pX). Overridable for non-seed environments.
-const USER_ID = __ENV.TEST_USER_ID || 'uBmeaz5pX';
+import {BASE, USER, NEW_USER_PASSWORD, JSON_HEADERS} from './config.js';
 
 /**
  * Register a brand-new user via POST /users (the unauthenticated signup write).
@@ -31,8 +28,8 @@ export function signupJourney() {
       firstName: 'Perf',
       lastName: 'Signup',
       username: unique,
-      password: 's3cret',
-      confirmPassword: 's3cret',
+      password: NEW_USER_PASSWORD,
+      confirmPassword: NEW_USER_PASSWORD,
     };
 
     const res = http.post(`${BASE.api}/users`, JSON.stringify(body), {
@@ -166,7 +163,7 @@ function resolveWriteContext() {
   const users = http.get(`${BASE.api}/users`, {tags: {endpoint: 'users'}});
   const list = users.json('results');
   if (Array.isArray(list)) {
-    const other = list.find(u => u.id !== USER_ID);
+    const other = list.find(u => u.id !== USER.id);
     if (other) cachedReceiverId = other.id;
   }
 

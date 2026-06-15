@@ -141,7 +141,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-app
       - uses: grafana/setup-k6-action@v1
-      - run: npm run perf:smoke # thresholds in lib/thresholds.js = the gate
+      # All feature scenarios at the smoke profile; thresholds (SLOs) in
+      # lib/thresholds.js are the gate — a breach fails the build.
+      - run: npm run perf:all:smoke
 
   zap:
     name: Gate 6 · Security DAST (ZAP)

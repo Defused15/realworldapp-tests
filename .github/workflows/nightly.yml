@@ -63,5 +63,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-app
       - uses: grafana/setup-k6-action@v1
-      - run: npm run perf:stress
-      - run: npm run perf:spike
+      # All load-worthy feature scenarios (home, signin, transaction) at the
+      # heavy profiles. signup is a smoke-only tripwire (see thresholds.js), so
+      # it is excluded here on purpose.
+      - run: PROFILE=stress npm run perf:all
+      - run: PROFILE=spike npm run perf:all

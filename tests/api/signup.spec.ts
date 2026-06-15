@@ -177,21 +177,35 @@ test.describe('signup API', () => {
 
     // ─── Security ────────────────────────────────────────────────────────────
     test.describe('Security', () => {
-      test('POST /users with XSS payload in username does not return 201 @security', async ({
+      test('POST /users XSS payload in username is stored as a literal, not executed @security', async ({
         request,
       }) => {
-        // Spot-check first 3 XSS payloads
+        // XSS is an OUTPUT-encoding concern: a JSON API safely STORES the raw
+        // string (201 is fine) and the payload is neutralized when rendered.
+        // The API-level vulnerability would be a 500 (or the value being
+        // mutated/interpreted server-side). Assert no server error and, when
+        // accepted, that the value round-trips verbatim.
         const payloads = xssPayloads.slice(0, 3);
         for (const payload of payloads) {
           const user = buildUser();
           const res = await request.post('/users', {
             data: {...user, username: payload, confirmPassword: user.password},
           });
-          expect(res.status()).not.toBe(201);
+          expect(
+            res.status(),
+            `XSS payload must not cause a server error: ${payload}`,
+          ).not.toBe(500);
+          if (res.status() === 201) {
+            const body = await res.json();
+            expect(
+              body.user.username,
+              'payload stored verbatim (literal), not interpreted',
+            ).toBe(payload);
+          }
         }
       });
 
-      test('POST /users with SQL injection in username does not return 201 @security', async ({
+      test('POST /users SQL injection in username is treated as a literal, not executed @security', async ({
         request,
       }) => {
         const user = buildUser();
@@ -202,7 +216,13 @@ test.describe('signup API', () => {
             confirmPassword: user.password,
           },
         });
-        expect(res.status()).not.toBe(201);
+        // Prisma parameterizes queries, so the payload is stored as a literal
+        // username (201 is safe, not a vuln). The real failure would be a 500
+        // (input reached the SQL engine raw) — assert against that instead.
+        expect(
+          res.status(),
+          'injection must not cause a server error',
+        ).not.toBe(500);
       });
 
       test('POST /users with NoSQL injection in username does not return 201 @security', async ({
