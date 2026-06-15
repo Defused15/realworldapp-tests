@@ -186,3 +186,22 @@ docs/
 | **Notificaciones** (Slack/PagerDuty on failure)                                     | Bajo    | Bajo                           |
 | **Chaos/resilience testing**                                                        | Bajo    | Alto                           |
 | **devcontainer / Dockerized test runner**                                           | Medio   | Medio                          |
+
+---
+
+# 🏁 Presentación — HACER AL FINAL DEL PROYECTO
+
+Cuando todo lo demás esté cerrado, pulir el **README como vitrina de portafolio**
+(lo más valioso para un reclutador no es más tooling, es la presentación):
+
+- **Intro fuerte**: qué es, por qué, y el "wow" en las primeras 5 líneas.
+- **Capturas / GIFs**: dashboard de Grafana (k6), reporte Allure, el scorecard del
+  reporte QA ejecutivo (`docs/qa-reports/`), el grafo de gates de CI.
+- **Badges**: CI status, cobertura, último run.
+- **Diagrama** de la arquitectura (pirámide de capas + flujo de gates).
+- **Sección "highlights"**: DB-integrity, mutation testing, QA Lead report, ROI.
+- Enlazar `docs/test-strategy.md` y `docs/adr/` para quien quiera el detalle.
+- Asegurar que se pueda **explicar cada pieza en una entrevista** (el README es el guion).
+
+> Razón de dejarlo al final: el README debe reflejar el estado FINAL real (no se
+> re-escribe cada vez que cambia algo). Hacerlo de último = una sola pasada buena.
