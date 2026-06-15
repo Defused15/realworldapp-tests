@@ -7,6 +7,12 @@ description: Writes all UI tests for a feature in a single file — happy path, 
 
 ---
 
+## Fuente de contexto primaria — `docs/workflows/app-workflow-map.md`
+
+Antes de escribir, **lee `docs/workflows/app-workflow-map.md`** si existe. Es el mapa de la app generado por `exploratory-agent`: rutas, `data-test` attrs por página, workflows de usuario y llamadas API observadas. Úsalo como referencia primaria junto al context brief y al POM — evita re-descubrir la página desde cero y mantiene consistencia entre features. Leer ESTE archivo de NUESTRO repo es válido: REGLA #1 solo prohíbe el source de la app, no nuestra documentación.
+
+---
+
 You write ONE file with ALL UI test categories for a feature. No splitting by type — everything in `tests/ui/<feature>.spec.ts`, separated by `test.describe` blocks.
 
 ## Input

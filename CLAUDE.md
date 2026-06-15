@@ -60,12 +60,36 @@ tests/
   scripts/
     seed.ts                 ← POST /testData/seed — reset DB to baseline (npm run db:seed)
     teardown.ts             ← POST /testData/seed — same as seed (npm run db:reset)
+  unit/
+    factories.test.ts     ← Vitest unit tests for pure factories (mutation-tested)
+  db-integration/
+    signin.test.ts        ← Vitest SQL cross-checks (API vs Postgres rows)
   global-setup.ts         ← auth once before all UI tests
   global-teardown.ts
+perf/k6/                  ← k6 load tests — one file per feature, PROFILE env for load shape
+  lib/{config,thresholds,profiles,journey}.js
+  scenarios/home.js
+observability/            ← Prometheus + Grafana stack for k6 metrics (docker-compose)
+security/                 ← ZAP rules, Trivy config (DAST/SCA — black-box)
 docs/
+  test-strategy.md        ← master doc: layers, pyramid, tags, gates, tooling
+  adr/                    ← Architecture Decision Records (the "why")
   test-cases/
     signin.feature        ← Gherkin scenarios for QA manual
+  bug-reports/            ← app bugs (one per finding); security-reports/ mirrors it
+  workflows/
+    app-workflow-map.md   ← black-box app map — PRIMARY context source for gen agents
+.github/
+  workflows/pipeline.yml  ← sequential CI gates (contract→api→db→ui→perf→zap→report)
+  workflows/nightly.yml   ← heavy: @visual/@a11y, cross-browser, perf stress/spike
+  actions/setup-app/      ← composite action that boots the app (STUB — see BACKLOG)
 ```
+
+> Full rationale and the universal organizing principle live in
+> **`docs/test-strategy.md`** and **`docs/adr/`**. Layers: `tests/unit` (Vitest),
+> `tests/ui` + `tests/api` (Playwright), `tests/db-integration` (Vitest+SQL),
+> `perf/k6` (k6), `security/` (ZAP/Trivy). Tooling: Stryker (mutation),
+> Lighthouse CI, Allure (reporting), axe-core (a11y).
 
 ## Test file structure — ONE file per feature per layer
 
@@ -160,6 +184,26 @@ npm run test:visual           # @visual
 npm run test:performance      # @performance
 npm run test:staging          # all vs staging
 npm run test:production       # all vs production
+
+# Other layers & tooling
+npm run test:unit             # Vitest unit tests (pure factories)
+npm run test:db               # Vitest SQL data-integrity
+npm run test:mutation         # Stryker mutation testing (proves test quality)
+npm run test:all              # unit + db + playwright
+
+# Performance (k6) — one file per feature, PROFILE picks the load shape
+npm run perf:smoke            # PROFILE=smoke  → home.js
+npm run perf:load             # PROFILE=load
+npm run perf:stress           # nightly
+npm run perf:spike            # nightly
+npm run perf:load:grafana     # stream metrics to Prometheus/Grafana
+
+# Security (black-box) & quality
+npm run security:zap          # OWASP ZAP DAST (app must be running)
+npm run security:deps         # Trivy SCA + misconfig
+npm run security:secrets      # Gitleaks
+npm run lighthouse            # Lighthouse CI budgets (UI)
+npm run report:allure         # generate + open Allure report
 ```
 
 ## Import conventions
@@ -199,7 +243,7 @@ import xssPayloads from '../data/xss-payloads.json';
 2. **Commit `__snapshots__/` to git** — CI needs it
 3. To update: `npx playwright test --update-snapshots --grep @visual`
 
-## AI agents (9 total)
+## AI agents (11 total)
 
 | Agent                  | Invoked by                          | Writes                                                                    |
 | ---------------------- | ----------------------------------- | ------------------------------------------------------------------------- |
@@ -212,6 +256,12 @@ import xssPayloads from '../data/xss-payloads.json';
 | `api-debug-agent`      | `start-testing` loop                | fixes failing API tests or writes test.skip bug report                    |
 | `exploratory-agent`    | `/exploratory-test`                 | `docs/workflows/app-workflow-map.md` + per-page briefs                    |
 | `data-integrity-agent` | `/data-integrity`                   | `tests/helpers/db-helpers.ts`, `tests/api/data-integrity.spec.ts`, report |
+| `perf-agent`           | `/perf-test`                        | `perf/k6/scenarios/<feature>.js` (one file per feature, PROFILE env)      |
+| `security-agent`       | `/security-scan`                    | scan config tuning + `docs/security-reports/<scan>-<date>.md`             |
+
+All generation agents (`pom`, `ui-test`, `api-test`, `gherkin`, `perf`) read
+`docs/workflows/app-workflow-map.md` as the **primary context source** before
+writing — see each agent's "Fuente de contexto primaria" section.
 
 ## Gen-test flow
 

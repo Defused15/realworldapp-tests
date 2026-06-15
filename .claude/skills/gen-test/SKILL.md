@@ -19,6 +19,22 @@ test -f tests/fixtures/fixtures.ts && test -f tests/global-setup.ts && test -f t
 
 If any file is missing → stop and tell the user: "Run `/setup-project <base-url>` first. The project infrastructure is not set up yet."
 
+## Phase 0 — Load the app workflow map (read first, before scanning)
+
+If `docs/workflows/app-workflow-map.md` exists, **read it before anything else** and keep it in
+context. It is the black-box map of the app produced by `exploratory-agent`: every route, the
+`data-test` attributes per page (and which element carries them), user workflows, and observed
+API calls (method, payload, status). This is OUR documentation — reading it does NOT violate
+REGLA #1 (which forbids the app's source, not our own docs).
+
+```bash
+test -f docs/workflows/app-workflow-map.md && echo "workflow map: found" || echo "workflow map: missing — run /exploratory-test first for richer context"
+```
+
+Use the map to pre-fill the context brief (selectors, endpoints, workflows) so the live scan in
+Phase 1 only confirms/fills gaps instead of rediscovering everything. Every agent in Wave A/B
+also reads this file as a primary source — pass the relevant section in the brief.
+
 ## Phase 1 — Scan the page (sequential — do this yourself)
 
 ```

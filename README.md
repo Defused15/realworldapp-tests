@@ -9,9 +9,18 @@ Production-grade test suite for the [Cypress Real World App](https://github.com/
 | E2E / UI       | Playwright                     | Browser automation, visual regression, accessibility |
 | API            | Playwright                     | HTTP contract, security, performance                 |
 | DB Integration | Vitest + pg                    | SQL cross-checks: API writes vs actual DB rows       |
+| Unit           | Vitest                         | Pure factories — fast, mutation-tested               |
+| Mutation       | Stryker                        | Proves the unit tests actually catch regressions     |
+| Performance    | k6                             | Load/stress/spike; SLOs as CI gate                   |
+| Observability  | Prometheus + Grafana           | Live k6 metrics dashboards                           |
+| Security       | OWASP ZAP · Trivy · Gitleaks   | Black-box DAST + SCA + secret scanning               |
 | Accessibility  | axe-core/playwright            | WCAG 2.1 AA                                          |
+| Reporting      | Allure                         | Rich, historical test reports                        |
 | Test data      | @faker-js/faker                | Realistic, unique values per test                    |
 | Linting        | GTS + eslint-plugin-playwright | Google TypeScript Style, Playwright-specific rules   |
+
+> Full organizing principle, layers, tags and gates: **[docs/test-strategy.md](docs/test-strategy.md)**.
+> Decisions behind the architecture: **[docs/adr/](docs/adr/)**.
 
 ## Test Pyramid
 
@@ -155,17 +164,31 @@ git add __snapshots__/
 git commit -m "chore: update visual snapshots"
 ```
 
-## CI Strategy
+## CI Strategy — sequential gates
 
-| Trigger      | DB Integration | API Tests              | UI Tests                               | ~Time   |
-| ------------ | -------------- | ---------------------- | -------------------------------------- | ------- |
-| Pull Request | Full suite     | `@smoke` + `@contract` | `@smoke`                               | 5–8 min |
-| Push to main | Full suite     | Full suite             | `@smoke` + `@regression` + `@security` | 15 min  |
-| Nightly      | Full suite     | Full suite             | Full suite (incl. `@visual` + `@a11y`) | 30 min  |
+`.github/workflows/pipeline.yml` runs gates fail-fast, cheap → expensive. A
+broken gate stops the ones after it.
 
-DB integration tests always run first — they're the fastest feedback loop and catch data-layer bugs before browsers are involved.
+```
+quality ──┬─ security-sca (SCA + secrets — no app needed)
+          └─ contract → api → db → ui → performance → zap → report
+```
+
+| Trigger      | What runs                                                            |
+| ------------ | -------------------------------------------------------------------- |
+| Pull Request | quality, security-sca, then gates 1–4 at reduced scope (`@smoke`)    |
+| Push to main | quality, security-sca, all gates full scope                          |
+| Nightly      | full suite incl. `@visual`/`@a11y`, cross-browser, perf stress/spike |
+
+App-dependent gates are guarded by `vars.APP_IMAGE` (booting the app in CI is
+the one deferred piece — see `BACKLOG.md` and ADR-0003). Until configured,
+`quality` + `security-sca` run green and the rest are skipped. See
+[docs/adr/0003-sequential-ci-gates.md](docs/adr/0003-sequential-ci-gates.md).
 
 ## Architecture Decisions
+
+> Formal records live in **[docs/adr/](docs/adr/)**. The notes below are the
+> quick rationale.
 
 ### Why Vitest for DB integration, not Playwright?
 

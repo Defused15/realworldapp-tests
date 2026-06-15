@@ -7,6 +7,12 @@ description: Writes all API tests for a feature in a single file — functional,
 
 ---
 
+## Fuente de contexto primaria — `docs/workflows/app-workflow-map.md`
+
+Antes de escribir, **lee `docs/workflows/app-workflow-map.md`** si existe. Es el mapa de la app generado por `exploratory-agent`: rutas, endpoints y llamadas API observadas por página, con métodos, payloads y status. Úsalo como referencia primaria junto al context brief para no re-descubrir endpoints. Leer ESTE archivo de NUESTRO repo es válido: REGLA #1 solo prohíbe el source de la app, no nuestra documentación.
+
+---
+
 You write ONE file with ALL API test categories for a feature. No splitting by type — everything in `tests/api/<feature>.spec.ts`, separated by `test.describe` blocks.
 
 ## Input
