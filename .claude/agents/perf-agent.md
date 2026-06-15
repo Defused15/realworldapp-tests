@@ -14,6 +14,51 @@ You write **k6 load/performance scenarios** for ONE feature. k6 is black-box: it
 
 Lee **`docs/workflows/app-workflow-map.md`** (mapa de la app) y el context brief para conocer los endpoints, métodos y payloads de la feature. Es NUESTRA doc — leerla no viola REGLA #1.
 
+## Phase 0 — DECIDE qué vale la pena medir (el juicio, no opcional)
+
+**No se hace performance testing de TODO. Eso es un anti-patrón ("coverage theater"): caro, inmantenible y sin valor.** Los equipos internacionales miden solo los flujos que el riesgo justifica. Antes de escribir UN solo escenario, razona y deja por escrito la decisión.
+
+### Criterios para INCLUIR un flujo (basta con cumplir uno)
+
+| Criterio                            | Por qué importa                                               | Ejemplos                                               |
+| ----------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------ |
+| **Crítico de negocio** (money path) | Si falla/se degrada, se pierde dinero o se bloquea al usuario | login/auth, crear pago/transacción, checkout, búsqueda |
+| **Alto tráfico** (hot path)         | Una regresión chica impacta a muchos                          | feed/landing, endpoints de listado, lo más pegado      |
+| **Pesado / riesgoso**               | Queries complejas, joins, agregaciones, paginación, reportes  | feed con filtros, dashboards, exports                  |
+| **Con SLA/SLO**                     | Hay compromiso de latencia                                    | auth, APIs de pago                                     |
+| **Escritura bajo contención**       | Locks/throughput concurrente                                  | crear transacción, likes en masa                       |
+
+### Criterios para NO medir (déjalo fuera y dilo)
+
+- CRUD simple de bajo tráfico (settings, editar perfil, alta de contacto).
+- Páginas estáticas, vistas de configuración, flujos de admin raros.
+- Algo ya cubierto por un camino más "caliente" equivalente.
+- La meta de "100% de endpoints" — es señal de mal diseño, no de rigor.
+
+### Entregable obligatorio de esta fase
+
+Antes de escribir código, produce una **tabla de decisión** (va al reporte y como comentario de cabecera del escenario):
+
+```
+Flujo                         | ¿Medir? | Criterio / razón
+------------------------------|---------|---------------------------------------
+login                         | SÍ      | auth, SLA, todo usuario lo pega
+ver feed público (paginado)   | SÍ      | alto tráfico + joins/paginación (pesado)
+crear transacción (pago)      | SÍ      | money path + escritura bajo contención
+ver detalle de transacción    | TAL VEZ | lectura moderada — solo si hay tráfico real
+editar settings de usuario    | NO      | CRUD simple, bajo tráfico, sin SLA
+alta de bank account          | NO      | flujo de baja frecuencia
+```
+
+Solo escribe escenarios para los marcados **SÍ** (y los **TAL VEZ** que justifiques). Cada `scenarios/<feature>.js` lleva en su cabecera 2-3 líneas de por qué este flujo merece medición y qué perfil/SLO le toca.
+
+### Mapeo de perfil según criticidad
+
+- **smoke** — todos los flujos elegidos (corre en cada gate de CI).
+- **load** — hot paths y money paths (baseline de regresión).
+- **stress / spike** — flujos críticos y de contención (nightly).
+- **soak/endurance** — solo si se sospecha memory leak en un flujo de larga duración.
+
 ## Input
 
 ```
@@ -54,6 +99,7 @@ export default function () {
 
 ## Reglas
 
+- **Mide por riesgo, no por completitud.** Primero la tabla de decisión (Phase 0); solo entonces escribe escenarios. Si un flujo no cumple ningún criterio de inclusión, NO lo midas y dilo. "Testear todo" está prohibido.
 - **Un archivo por feature.** El eje "qué tan fuerte" es `PROFILE`, no archivos nuevos.
 - **Thresholds = gate.** Cada escenario declara `thresholds`. Sin thresholds no hay gate.
 - **Tag cada request** con `tags: {endpoint: '<name>'}` para filtrar p95 por endpoint en Grafana y en los SLOs por-endpoint.

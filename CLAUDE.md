@@ -243,21 +243,22 @@ import xssPayloads from '../data/xss-payloads.json';
 2. **Commit `__snapshots__/` to git** — CI needs it
 3. To update: `npx playwright test --update-snapshots --grep @visual`
 
-## AI agents (11 total)
+## AI agents (12 total)
 
-| Agent                  | Invoked by                          | Writes                                                                    |
-| ---------------------- | ----------------------------------- | ------------------------------------------------------------------------- |
-| `support-agent`        | `setup-project` / `gen-test` Wave A | fixtures, helpers, global-setup, base.page                                |
-| `pom-agent`            | `gen-test` Wave A                   | `tests/pages/<feature>.page.ts` + fixture registration                    |
-| `gherkin-agent`        | `gen-test` Wave A                   | `docs/test-cases/<feature>.feature`                                       |
-| `ui-test-agent`        | `gen-test` Wave B                   | `tests/ui/<feature>.spec.ts` (all UI categories)                          |
-| `api-test-agent`       | `gen-test` Wave B                   | `tests/api/<feature>.spec.ts` (all API categories)                        |
-| `ui-debug-agent`       | `start-testing` loop                | fixes failing UI tests or writes test.skip bug report                     |
-| `api-debug-agent`      | `start-testing` loop                | fixes failing API tests or writes test.skip bug report                    |
-| `exploratory-agent`    | `/exploratory-test`                 | `docs/workflows/app-workflow-map.md` + per-page briefs                    |
-| `data-integrity-agent` | `/data-integrity`                   | `tests/helpers/db-helpers.ts`, `tests/api/data-integrity.spec.ts`, report |
-| `perf-agent`           | `/perf-test`                        | `perf/k6/scenarios/<feature>.js` (one file per feature, PROFILE env)      |
-| `security-agent`       | `/security-scan`                    | scan config tuning + `docs/security-reports/<scan>-<date>.md`             |
+| Agent                  | Invoked by                          | Writes                                                                      |
+| ---------------------- | ----------------------------------- | --------------------------------------------------------------------------- |
+| `support-agent`        | `setup-project` / `gen-test` Wave A | fixtures, helpers, global-setup, base.page                                  |
+| `pom-agent`            | `gen-test` Wave A                   | `tests/pages/<feature>.page.ts` + fixture registration                      |
+| `gherkin-agent`        | `gen-test` Wave A                   | `docs/test-cases/<feature>.feature`                                         |
+| `ui-test-agent`        | `gen-test` Wave B                   | `tests/ui/<feature>.spec.ts` (all UI categories)                            |
+| `api-test-agent`       | `gen-test` Wave B                   | `tests/api/<feature>.spec.ts` (all API categories)                          |
+| `ui-debug-agent`       | `start-testing` loop                | fixes failing UI tests or writes test.skip bug report                       |
+| `api-debug-agent`      | `start-testing` loop                | fixes failing API tests or writes test.skip bug report                      |
+| `exploratory-agent`    | `/exploratory-test`                 | `docs/workflows/app-workflow-map.md` + per-page briefs                      |
+| `data-integrity-agent` | `/data-integrity`                   | `tests/helpers/db-helpers.ts`, `tests/api/data-integrity.spec.ts`, report   |
+| `perf-agent`           | `/perf-test`                        | `perf/k6/scenarios/<feature>.js` (one file per feature, PROFILE env)        |
+| `security-agent`       | `/security-scan`                    | scan config tuning + `docs/security-reports/<scan>-<date>.md`               |
+| `qa-lead-agent`        | `/qa-report`                        | executive QA status report (coverage, KPIs, risk, ROI) → `docs/qa-reports/` |
 
 All generation agents (`pom`, `ui-test`, `api-test`, `gherkin`, `perf`) read
 `docs/workflows/app-workflow-map.md` as the **primary context source** before
