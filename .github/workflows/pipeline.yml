@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with: {node-version: '20', cache: npm}
       - run: npm ci
       - run: npm run compile # tsc --noEmit equivalent (build)
@@ -219,7 +219,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with: {node-version: '20', cache: npm}
       - run: npm ci
       # Allure CLI needs a JRE; the bundled openjdk:8-jre-alpine image that
