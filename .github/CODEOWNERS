@@ -1,0 +1,17 @@
+# CODEOWNERS — required reviewers per area. Enforced when branch protection has
+# "Require review from Code Owners" enabled.
+
+# Default owner for everything.
+*                       @Defused15
+
+# Test infrastructure — review carefully, many specs depend on it.
+/tests/fixtures/        @Defused15
+/tests/helpers/         @Defused15
+/tests/pages/           @Defused15
+/playwright.config.ts   @Defused15
+
+# CI / pipeline.
+/.github/               @Defused15
+
+# AI agents & skills — changing these changes how the whole suite is generated.
+/.claude/               @Defused15

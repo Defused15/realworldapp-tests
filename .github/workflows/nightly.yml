@@ -1,0 +1,67 @@
+name: Nightly
+
+# Heavy suites that are too slow for every PR/push: full UI incl. @visual +
+# @a11y, performance stress/spike, and a full ZAP scan. Guarded by vars.APP_IMAGE
+# like the main pipeline (skipped until the app image is configured — BACKLOG.md).
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # 02:00 UTC nightly
+  workflow_dispatch: {}
+
+env:
+  API_URL: ${{ vars.API_URL || 'http://localhost:3001' }}
+  BASE_URL: ${{ vars.BASE_URL || 'http://localhost:3000' }}
+  TEST_USER_USERNAME: ${{ secrets.TEST_USER_USERNAME || 'Heath93' }}
+  TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || 's3cret' }}
+  APP_IMAGE: '${{ vars.APP_IMAGE }}'
+
+jobs:
+  full-suite:
+    name: Full suite (incl. @visual + @a11y)
+    if: ${{ vars.APP_IMAGE != '' }}
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rwa_dev
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_NAME: rwa_dev
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      CROSS_BROWSER: '1' # also run Firefox + WebKit UI projects
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-app
+      - run: npx playwright install --with-deps firefox webkit
+      - run: npm run test:unit
+      - run: npm run test:db
+      - run: npx playwright test # all projects (incl. cross-browser), all tags
+
+  performance-heavy:
+    name: Performance (stress + spike)
+    if: ${{ vars.APP_IMAGE != '' }}
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env: {POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: rwa_dev}
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-app
+      - uses: grafana/setup-k6-action@v1
+      - run: npm run perf:stress
+      - run: npm run perf:spike

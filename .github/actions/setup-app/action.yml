@@ -1,0 +1,56 @@
+# .github/actions/setup-app/action.yml
+# Composite action shared by every app-dependent gate: installs deps, boots the
+# app under test, waits for it, and seeds the DB. Single place where the app
+# startup lives.
+#
+# ⚠️ STUB — the actual app startup is DEFERRED (see BACKLOG.md "Roadmap de
+# arquitectura"). Decision: pull a published GHCR image (black-box, REGLA #1).
+# Until vars.APP_IMAGE is set, the gate jobs that call this are skipped, so CI
+# stays green on `quality` alone.
+
+name: setup-app
+description: Install deps, boot the app under test, seed the DB.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: npm
+
+    - name: Install dependencies
+      shell: bash
+      run: npm ci
+
+    - name: Install Playwright browsers
+      shell: bash
+      run: npx playwright install --with-deps chromium
+
+    - name: Boot the app under test
+      shell: bash
+      run: |
+        # ── STUB — pending the GHCR image (BACKLOG.md) ──────────────────────
+        # When the image exists, replace this block with, e.g.:
+        #
+        #   docker run -d --name rwa-app --network host \
+        #     -e DATABASE_URL="postgresql://postgres:postgres@localhost:5432/rwa_dev" \
+        #     "$APP_IMAGE"
+        #
+        # (postgres is provided as a `services:` block in the calling job)
+        echo "::warning::setup-app is a stub — set vars.APP_IMAGE to boot the app in CI (see BACKLOG.md)"
+
+    - name: Wait for the API to be ready
+      shell: bash
+      run: |
+        for i in $(seq 1 30); do
+          if curl -sf "${API_URL:-http://localhost:3001}" >/dev/null; then
+            echo "API is up"; exit 0
+          fi
+          sleep 2
+        done
+        echo "API did not become ready in time"; exit 1
+
+    - name: Seed the database
+      shell: bash
+      run: npm run db:seed

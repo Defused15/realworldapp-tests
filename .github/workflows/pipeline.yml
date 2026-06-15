@@ -1,0 +1,189 @@
+name: Pipeline (gated)
+
+# Sequential, fail-fast gate pipeline: cheap → expensive. Jobs are chained with
+# `needs:`, so a failing gate stops the ones after it.
+#
+#   quality
+#    ├─ security-sca           (no app needed — runs now, green)
+#    └─ contract → api → db → ui → performance → zap     (need the app)
+#                                                  └─ report (always)
+#
+# The app-dependent gates are guarded by `vars.APP_IMAGE`: until the app image is
+# published to GHCR (see BACKLOG.md — deferred "docker" piece), they are skipped
+# and CI stays green on `quality` + `security-sca`. Wire the image in one place:
+# .github/actions/setup-app/action.yml.
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+env:
+  API_URL: ${{ vars.API_URL || 'http://localhost:3001' }}
+  BASE_URL: ${{ vars.BASE_URL || 'http://localhost:3000' }}
+  TEST_USER_USERNAME: ${{ secrets.TEST_USER_USERNAME || 'Heath93' }}
+  TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || 's3cret' }}
+
+jobs:
+  # ── Always runs (no app) ───────────────────────────────────────────────────
+  quality:
+    name: Quality (lint · types · build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20', cache: npm}
+      - run: npm ci
+      - run: npm run compile # tsc --noEmit equivalent (build)
+      - run: npm run lint
+      - run: npm run test:unit:coverage # unit tests + coverage gate (no app needed)
+
+  security-sca:
+    name: Security · SCA + secrets (no app)
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0} # gitleaks needs full history
+      - name: Gitleaks (secret scan)
+        uses: gitleaks/gitleaks-action@v2
+        env: {GITLEAKS_CONFIG: .gitleaks.toml}
+      - name: Trivy (dependencies + misconfig)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          trivy-config: security/trivy/trivy.yaml
+
+  # ── App-dependent gates (skipped until vars.APP_IMAGE is set) ───────────────
+  contract:
+    name: Gate 1 · API contract
+    needs: quality
+    if: ${{ vars.APP_IMAGE != '' }}
+    runs-on: ubuntu-latest
+    services:
+      postgres: &postgres
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rwa_dev
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-app
+      - run: npm run test:contract
+
+  api:
+    name: Gate 2 · API tests
+    needs: contract
+    if: ${{ vars.APP_IMAGE != '' }}
+    runs-on: ubuntu-latest
+    services: {postgres: *postgres}
+    env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-app
+      # PR → @smoke (fast); push → full api project
+      - run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npx playwright test --project=api --grep @smoke
+          else
+            npx playwright test --project=api
+          fi
+
+  db:
+    name: Gate 3 · DB integrity
+    needs: api
+    if: ${{ vars.APP_IMAGE != '' }}
+    runs-on: ubuntu-latest
+    services: {postgres: *postgres}
+    env:
+      APP_IMAGE: '${{ vars.APP_IMAGE }}'
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_NAME: rwa_dev
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-app
+      - run: npm run test:db
+
+  ui:
+    name: Gate 4 · UI tests (shard ${{ matrix.shard }}/2)
+    needs: db
+    if: ${{ vars.APP_IMAGE != '' }}
+    runs-on: ubuntu-latest
+    # Sharding: split the UI tests across parallel runners for faster feedback.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    services: {postgres: *postgres}
+    env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-app
+      # PR → @smoke; push → smoke + regression + security. --shard splits the run.
+      - run: |
+          GREP='@smoke'
+          [ "${{ github.event_name }}" != "pull_request" ] && GREP='@smoke|@regression|@security'
+          npx playwright test --project=ui --grep "$GREP" --shard=${{ matrix.shard }}/2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-results-${{ matrix.shard }} # unique per shard
+          path: allure-results/
+          retention-days: 30
+
+  performance:
+    name: Gate 5 · Performance (k6)
+    needs: ui
+    if: ${{ vars.APP_IMAGE != '' }}
+    runs-on: ubuntu-latest
+    services: {postgres: *postgres}
+    env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-app
+      - uses: grafana/setup-k6-action@v1
+      - run: npm run perf:smoke # thresholds in lib/thresholds.js = the gate
+
+  zap:
+    name: Gate 6 · Security DAST (ZAP)
+    needs: ui
+    if: ${{ vars.APP_IMAGE != '' }}
+    runs-on: ubuntu-latest
+    services: {postgres: *postgres}
+    env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-app
+      - name: ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: ${{ env.BASE_URL }}
+          rules_file_name: security/zap/rules.tsv
+          cmd_options: '-I' # don't fail the build on WARN, only on FAIL rules
+
+  # ── Reporting ──────────────────────────────────────────────────────────────
+  report:
+    name: Allure report
+    needs: [ui, performance, zap]
+    if: ${{ always() && vars.APP_IMAGE != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: allure-results-* # merge results from every UI shard
+          path: allure-results
+          merge-multiple: true
+      - uses: simple-elf/allure-report-action@v1.9
+        with: {gh_pages: gh-pages, allure_results: allure-results}
