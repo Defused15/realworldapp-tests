@@ -60,11 +60,11 @@
       "fieldConfig": {"defaults": {"unit": "s"}},
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, endpoint) (rate(k6_http_req_duration[1m])))",
+          "expr": "histogram_quantile(0.95, sum by (endpoint) (rate(k6_http_req_duration_seconds[1m])))",
           "legendFormat": "p95 {{endpoint}}"
         },
         {
-          "expr": "histogram_quantile(0.99, sum by (le, endpoint) (rate(k6_http_req_duration[1m])))",
+          "expr": "histogram_quantile(0.99, sum by (endpoint) (rate(k6_http_req_duration_seconds[1m])))",
           "legendFormat": "p99 {{endpoint}}"
         }
       ]
