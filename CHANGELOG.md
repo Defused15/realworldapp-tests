@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. This file is generated automatically by semantic-release from Conventional Commits.
 
+## [1.0.1](https://github.com/Defused15/realworldapp-tests/compare/v1.0.0...v1.0.1) (2026-06-16)
+
+### Bug Fixes
+
+- **ci:** embed bug detail in synced issues + repair 404 report link ([1dab55f](https://github.com/Defused15/realworldapp-tests/commit/1dab55f96faf13a322f8f5d73feb8bb6bc214ad8))
+- **deps:** pin playwright + playwright-core to 1.60.0 (1.61 breaks on Node 22.15) ([5e55ecd](https://github.com/Defused15/realworldapp-tests/commit/5e55ecdd09b5b85cf631b084cd3a547608d4564f))
+
 # 1.0.0 (2026-06-16)
 
 ### Bug Fixes
