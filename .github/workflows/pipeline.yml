@@ -47,9 +47,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0} # gitleaks needs full history
+      # Run the gitleaks CLI via Docker instead of gitleaks/gitleaks-action@v2:
+      # the action makes an unauthenticated GitHub API call to check the account
+      # type, hits the API rate limit, and then demands a paid GITLEAKS_LICENSE.
+      # The CLI has no such gate.
       - name: Gitleaks (secret scan)
-        uses: gitleaks/gitleaks-action@v2
-        env: {GITLEAKS_CONFIG: .gitleaks.toml}
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
+            detect --source=/repo --config=/repo/.gitleaks.toml \
+            --redact --verbose --no-banner
       - name: Trivy (dependencies + misconfig)
         uses: aquasecurity/trivy-action@0.35.0
         with:
