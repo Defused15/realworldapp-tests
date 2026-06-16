@@ -2,8 +2,12 @@
 /**
  * Sync docs/bug-reports/bugs.yml → GitHub issues.
  *
+ * The manifest is the single source of truth: each bug's full reproduction &
+ * analysis lives in its structured fields and is rendered straight into the issue
+ * body (self-contained — no markdown report files, no links to docs).
+ *
  * For each bug in the manifest:
- *   status: open      → ensure an OPEN issue exists (create, or reopen if closed)
+ *   status: open      → ensure an OPEN issue exists (create, reopen, or refresh body)
  *   status: resolved  → close the matching issue with a comment
  *
  * Issues are matched idempotently by the `[<id>]` prefix in the title plus the
@@ -78,55 +82,32 @@ function severityLabel(sev) {
   return `severity:${String(sev).toLowerCase()}`;
 }
 
-const BRANCH = process.env.GITHUB_REF_NAME || 'master';
-
-// Pull the per-bug section out of its markdown report so the full reproduction &
-// analysis lives INSIDE the GitHub issue (no click-through to a relative path that
-// 404s). The markdown files stay the single source of truth — we just inline the
-// matching `## <id> …` heading's body up to the next heading or `---` rule.
-function readReportSection(reportPath, id) {
-  let text;
-  try {
-    text = readFileSync(resolve(REPO_ROOT, reportPath), 'utf8');
-  } catch {
-    return null;
-  }
-  const lines = text.split('\n');
-  let start = -1;
-  for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/^#{2,3}\s+([A-Z0-9-]+)\b/);
-    if (m && m[1] === id) {
-      start = i + 1; // skip the heading itself — the issue title already carries it
-      break;
-    }
-  }
-  if (start === -1) return null;
-  let end = lines.length;
-  for (let i = start; i < lines.length; i++) {
-    if (/^#{2,3}\s+[A-Z0-9-]+/.test(lines[i]) || /^---\s*$/.test(lines[i])) {
-      end = i;
-      break;
-    }
-  }
-  return lines.slice(start, end).join('\n').trim();
-}
-
+// Render the full bug — reproduction & analysis — directly into the issue body from
+// the manifest's structured fields. The issue is self-contained: no markdown report
+// files, no click-through links to docs.
 function issueBody(bug) {
-  // Absolute permalink to the report file (a relative `docs/...` link resolves
-  // against the issue URL and 404s).
-  const permalink = `https://github.com/${repo}/blob/${BRANCH}/${bug.report}`;
-  const detail = readReportSection(bug.report, bug.id);
-  const parts = [
-    `> **Bug ID:** \`${bug.id}\` · **Severity:** ${bug.severity} · **Area:** ${bug.area}`,
-    '',
-  ];
-  if (detail) parts.push(detail, '');
+  const meta = [`**Severity:** ${bug.severity}`, `**Area:** ${bug.area}`];
+  if (bug.endpoint) meta.push(`**Endpoint:** \`${bug.endpoint}\``);
+  const parts = [`> ${meta.join(' · ')}`, ''];
+
+  const section = (heading, value) => {
+    if (!value) return;
+    parts.push(`### ${heading}`, String(value).trim(), '');
+  };
+  section('Steps to reproduce', bug.steps);
+  section('Expected', bug.expected);
+  section('Actual', bug.actual);
+  section('Impact', bug.impact);
+  section('Suggested fix', bug.fix);
+  if (Array.isArray(bug.tags) && bug.tags.length) {
+    section('Test tags', bug.tags.map(t => `\`@${t}\``).join(' '));
+  }
+  if (bug.test_file) section('Covered in', `\`${bug.test_file}\``);
+
   parts.push(
     '---',
-    `📄 **Full report:** [\`${bug.report}\`](${permalink})`,
-    '',
     '<sub>Auto-managed by `.github/workflows/bug-report-sync.yml` from `docs/bug-reports/bugs.yml`. ' +
-      'Close by setting `status: resolved` in the manifest — do not close by hand.</sub>'
+      'Edit/close by changing that manifest (set `status: resolved`) — do not edit or close by hand.</sub>'
   );
   return parts.join('\n');
 }

@@ -196,8 +196,8 @@ jobs:
   # ── API property/fuzz testing (non-gating) ─────────────────────────────────
   # Schemathesis fuzzes every operation in docs/api/openapi.yaml against the live
   # app (not_a_server_error: no 5xx). It is NON-GATING: the app under test has
-  # known unhandled-500 defects (docs/bug-reports/api-fuzz-bugs.md, tracked as
-  # `app-bug` issues) that we don't patch, so a finding must not block the build.
+  # known unhandled-500 defects (BUG-API-FUZZ-* in docs/bug-reports/bugs.yml,
+  # tracked as `app-bug` issues) that we don't patch, so a finding must not block.
   # It still runs for visibility and uploads the HTML coverage report.
   schemathesis:
     name: API fuzz (Schemathesis · non-gating)

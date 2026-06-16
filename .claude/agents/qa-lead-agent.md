@@ -39,11 +39,11 @@ npm run test:mutation        # mutation score (test quality)
 npm run perf:smoke           # performance SLOs pass/fail
 
 # Risk & security
-ls docs/bug-reports/ ; grep -rc "test.skip" tests   # known app defects (skipped = blocked by app bug)
+grep -c '^  - id:' docs/bug-reports/bugs.yml ; grep -rc "test.skip" tests   # known app defects (manifest entries + skipped tests)
 ls docs/security-reports/                            # security findings
 ```
 
-Also count **known app bugs** (each `docs/bug-reports/*` + each `test.skip(true, 'BUG-...')`) — these are defects the suite _found and is tracking_, a key value story.
+Also count **known app bugs** (each entry in `docs/bug-reports/bugs.yml` + each `test.skip(true, 'BUG-...')`) — these are defects the suite _found and is tracking_, a key value story.
 
 ## Step 2 — Build the scorecard
 

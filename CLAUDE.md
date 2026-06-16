@@ -76,7 +76,7 @@ docs/
   adr/                    ← Architecture Decision Records (the "why")
   test-cases/
     signin.feature        ← Gherkin scenarios for QA manual
-  bug-reports/            ← app bugs (one per finding); security-reports/ mirrors it
+  bug-reports/bugs.yml    ← app-bug manifest (one entry per bug → one GitHub issue via bug-report-sync); security-reports/ mirrors it
   workflows/
     app-workflow-map.md   ← black-box app map — PRIMARY context source for gen agents
 .github/

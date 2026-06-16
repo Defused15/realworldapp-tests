@@ -88,7 +88,7 @@ Feature: Home Dashboard
     # BUG-HOME-001: GET /transactions/public with dateStart/dateEnd params returns
     # 500 (server crash), so the date-range filter cannot be exercised. This
     # scenario documents the intended behavior; skipped until the endpoint is
-    # fixed. See docs/bug-reports/home-bugs.md.
+    # fixed. See BUG-HOME-001 in docs/bug-reports/bugs.yml (re-verified FIXED 2026-06-16).
     Given I am on the home dashboard
     And the "Everyone" tab is selected
     When I set the date filter to a specific date range with no matching transactions
