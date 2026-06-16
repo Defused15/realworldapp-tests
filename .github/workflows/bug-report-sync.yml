@@ -1,0 +1,44 @@
+name: Bug report sync
+
+# Keeps GitHub issues in lock-step with the bug manifest (docs/bug-reports/bugs.yml):
+# creates an issue for every `status: open` defect and closes the issue for every
+# `status: resolved` one. Idempotent — safe to re-run. See tests/scripts/sync-bug-issues.mjs.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'docs/bug-reports/bugs.yml'
+      - 'tests/scripts/sync-bug-issues.mjs'
+      - '.github/workflows/bug-report-sync.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Log actions without touching issues'
+        type: boolean
+        default: false
+
+permissions:
+  issues: write
+  contents: read
+
+# Never let two syncs race on the same issue list.
+concurrency:
+  group: bug-report-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync bug manifest → issues
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20', cache: npm}
+      - run: npm ci
+      - name: Sync issues
+        run: node tests/scripts/sync-bug-issues.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '1' || '' }}
