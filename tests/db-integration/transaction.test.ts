@@ -256,14 +256,14 @@ describe('Transaction Data Integrity', () => {
   // ─── Schema validation ────────────────────────────────────────────────────────
 
   describe('Schema Validation', () => {
-    it('BUG-TXN-SCHEMA-001: transactions.amount is double precision (should be integer)', async () => {
+    it('BUG-TXN-SCHEMA-001 (fixed): transactions.amount is stored as integer cents', async () => {
       const dataType = await queryScalar(`
         SELECT data_type
         FROM information_schema.columns
         WHERE table_name = 'transactions' AND column_name = 'amount'
       `);
-      // Asserting the current (buggy) type — fix this when schema is corrected to 'integer'
-      expect(dataType).toBe('double precision');
+      // Fixed: money is now integer cents, not double precision.
+      expect(dataType).toBe('integer');
     });
 
     it('likes.transactionId has FK constraint', async () => {
