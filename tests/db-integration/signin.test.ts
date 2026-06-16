@@ -119,7 +119,7 @@ describe('Signin Data Integrity', () => {
       expect(String(after!.modifiedAt)).toBe(String(before!.modifiedAt));
     });
 
-    it('BUG-004: POST /login response exposes bcrypt hash in user.password (known bug)', async () => {
+    it('BUG-003 (fixed): POST /login does NOT leak the bcrypt hash, but the DB stores it', async () => {
       const res = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -130,10 +130,15 @@ describe('Signin Data Integrity', () => {
       });
       const {user} = await res.json();
 
-      // Current behavior: hash is exposed. Fix → user.password should be undefined.
-      expect(user.password).toBeDefined();
-      expect(user.password).toMatch(/^\$2[ab]\$/);
-      expect(user.password).not.toBe(SEED_PASSWORD);
+      // Fixed: the API must not expose the password hash in the response.
+      expect(user.password).toBeUndefined();
+
+      // Data-integrity: the bcrypt hash still lives in the DB for this user.
+      const row = await queryOne<{password: string}>(
+        'SELECT password FROM users WHERE id = $1',
+        [SEED_USER_ID],
+      );
+      expect(row!.password).toMatch(/^\$2[ab]\$/);
     });
   });
 

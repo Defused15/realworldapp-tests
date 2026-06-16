@@ -79,10 +79,9 @@ describe('Signup / User Data Integrity', () => {
       expect(Date.now() - ts).toBeLessThan(60_000);
     });
 
-    it('BUG-003: POST /users response exposes bcrypt hash in user.password (known bug)', async () => {
-      // This test documents a known security issue — the hash should not be in the response.
-      // Assert current (buggy) behavior so a fix breaks this test visibly.
-      const {username, password} = await createFreshUser();
+    it('BUG-004 (fixed): POST /users does NOT leak the bcrypt hash, but the DB stores it', async () => {
+      const {password} = await createFreshUser();
+      const newUsername = `bug004_${Date.now()}`;
 
       const res = await fetch(
         `${process.env.API_URL ?? 'http://localhost:3001'}/users`,
@@ -92,17 +91,22 @@ describe('Signup / User Data Integrity', () => {
           body: JSON.stringify({
             firstName: 'Doc',
             lastName: 'Bug',
-            username: `bug003_${Date.now()}`,
+            username: newUsername,
             password,
           }),
         },
       );
       const {user} = await res.json();
 
-      // Current behavior: hash is exposed. Fix → user.password should be undefined.
-      expect(user.password).toBeDefined();
-      expect(user.password).toMatch(/^\$2[ab]\$/);
-      void username;
+      // Fixed: the API must not expose the password hash in the response.
+      expect(user.password).toBeUndefined();
+
+      // Data-integrity: the hash IS persisted (bcrypt) in the DB.
+      const row = await queryOne<{password: string}>(
+        'SELECT password FROM users WHERE username = $1',
+        [newUsername],
+      );
+      expect(row!.password).toMatch(/^\$2[ab]\$/);
     });
   });
 
