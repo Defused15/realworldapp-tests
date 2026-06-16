@@ -13,11 +13,11 @@ Explica y regenera el pipeline de gates secuenciales (`.github/workflows/pipelin
 
 ```
 quality (lint + tsc + build)
- → setup-app (docker compose up + db:seed)        [STUB — pendiente: imagen GHCR]
-   → GATE 1: contract   (@contract, schema)
+ → setup-app (levanta imagen GHCR + Postgres desechable + db:seed)
+   → GATE 1: contract   (@contract, schema + Schemathesis fuzz)
      → GATE 2: api       (@smoke + @regression + @security)
        → GATE 3: db      (vitest data-integrity)
-         → GATE 4: ui    (@smoke; +@a11y/@visual en nightly)
+         → GATE 4: ui    (@smoke, sharded ×2; +@a11y/@visual en nightly)
            → GATE 5: performance  (k6, thresholds = gate)
              → GATE 6: security   (ZAP + Trivy + Gitleaks)
                → report  (Allure → GitHub Pages)
@@ -25,25 +25,26 @@ quality (lint + tsc + build)
 
 - Cada gate es un `job` con `needs: [gate-anterior]`. Si contract rompe, no se gasta lo demás.
 - App levantada **una vez** en `setup-app` y reusada por los gates.
-- PR = gates 1-4 rápidos; push a main = todos; nightly = todo + visual/a11y/perf pesado.
+- PR = gates 1-4 rápidos; push a main = todos; nightly = todo + visual/a11y/perf pesado + chaos.
 - `continue-on-error` solo en gates informativos (`@visual`, `@a11y`).
 
-## Dependencia pendiente (lo del docker — diferido)
+## App en CI — ✅ RESUELTO (2026-06-16)
 
-`setup-app` necesita la app en CI. Decisión: **imagen Docker publicada en GHCR**
-(black-box, respeta REGLA #1). Hasta que exista, `setup-app` es un stub documentado
-y los gates corren contra `vars.API_URL`. Ver `BACKLOG.md` sección "Roadmap de arquitectura".
-
-Datos que faltan para activarlo:
-
-- Nombre de imagen GHCR de la app (`vars.APP_IMAGE`)
-- Env vars que la app espera para conectar a Postgres
+`setup-app` ya **no es un stub**. La app entra a CI con el patrón **producer/consumer
+GHCR** (black-box, respeta REGLA #1): el repo del app publica una imagen opaca
+`ghcr.io/defused15/rwa-app` y `setup-app` (`.github/actions/setup-app/app.ci.yml`)
+la levanta junto a un Postgres desechable (`rwa_test`, host 5433) por run, auto-seedeado.
+Los gates dependientes del app se activan con `vars.APP_IMAGE` ya configurado.
+Detalle en `BACKLOG.md` §0 y `docs/adr/0003-sequential-ci-gates.md`.
 
 ## Triggers por workflow
 
-| Workflow       | Trigger       | Gates                                               |
-| -------------- | ------------- | --------------------------------------------------- |
-| `pipeline.yml` | PR, push main | gates secuenciales (PR = 1-4, push = todos)         |
-| `nightly.yml`  | cron          | full incl. visual/a11y/perf stress/spike + ZAP full |
+| Workflow              | Trigger          | Gates                                                       |
+| --------------------- | ---------------- | ----------------------------------------------------------- |
+| `pipeline.yml`        | PR, push main    | gates secuenciales (PR = 1-4, push = todos)                 |
+| `nightly.yml`         | cron             | full incl. visual/a11y/perf stress/spike + ZAP full + chaos |
+| `staging-smoke.yml`   | cron 6h + manual | `@staging` synthetic smoke read-only vs Railway             |
+| `release.yml`         | workflow_run     | semantic-release tras pipeline verde en main                |
+| `bug-report-sync.yml` | push a bugs.yml  | renderiza/cierra issues desde `docs/bug-reports/bugs.yml`   |
 
 ARGUMENTS: $ARGUMENTS

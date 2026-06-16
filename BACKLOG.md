@@ -1,5 +1,18 @@
 # Backlog
 
+> **Estado final (2026-06-16).** Casi todo el roadmap está cerrado. Lo que queda
+> ABIERTO es solo:
+>
+> 1. **Reportes a plataforma externa / QA Hub** (ver justo abajo) — Allure ya
+>    genera reportes locales/CI; falta el hub centralizado con `repository_dispatch`.
+> 2. **OpenTelemetry / test observability** (trazas de tests) — Medio impacto, costo Alto.
+> 3. **Railway PR Environments nativo** (preview-URL por PR) — bloqueado por REGLA #1:
+>    el toggle vive en el repo del APP, no en el nuestro. El aislamiento ephemeral
+>    _por run_ ya está resuelto vía `setup-app`/GHCR (ver §0 y los gaps de abajo).
+>
+> Todo lo demás está ✅ HECHO o ❌ DESCARTADO por decisión explícita. La
+> **Presentación / README final** (§ al final) también quedó ✅ HECHA el 2026-06-16.
+
 ## Reportes a plataforma externa
 
 Integrar los resultados de tests con una plataforma de reporting centralizada para tener histórico, tendencias y alertas.
@@ -216,10 +229,24 @@ docs/
 
 ---
 
-# 🏁 Presentación — HACER AL FINAL DEL PROYECTO
+# 🏁 Presentación — ✅ HECHA (2026-06-16)
 
-Cuando todo lo demás esté cerrado, pulir el **README como vitrina de portafolio**
-(lo más valioso para un reclutador no es más tooling, es la presentación):
+El README final se pulió como vitrina de portafolio el 2026-06-16: intro con el
+"wow" en las primeras líneas, badges (pipeline/nightly/staging/node/playwright),
+sección **Highlights** (9 capas, gates, mutation, Schemathesis gate, chaos,
+observabilidad, synthetic monitoring, bug-sync, QA report), diagrama de gates,
+tabla de stack ampliada, estructura top-level real, y la tabla de bugs enlazada a
+`bugs.yml` + el reporte ejecutivo. El reporte QA ejecutivo vive en
+`docs/qa-reports/` (último: `qa-status-2026-06-16.md`).
+
+**Capturas hechas (2026-06-16)** → `docs/assets/`, embebidas en el README:
+`ci-gates-graph.png` (pipeline gated verde en GitHub Actions),
+`grafana-k6-dashboard.png` (dashboard k6 en vivo con 20 VUs) y
+`allure-overview.png` (reporte Allure 96.55% pass). El dashboard de Grafana
+también se corrigió de paso (los paneles Error rate / Checks usaban métricas
+`k6_*_total` inexistentes → ahora `k6_*_rate`).
+
+Checklist original (todo cubierto):
 
 - **Intro fuerte**: qué es, por qué, y el "wow" en las primeras 5 líneas.
 - **Capturas / GIFs**: dashboard de Grafana (k6), reporte Allure, el scorecard del

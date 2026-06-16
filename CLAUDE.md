@@ -71,6 +71,7 @@ perf/k6/                  ← k6 load tests — one file per feature, PROFILE en
   scenarios/home.js
 observability/            ← Prometheus + Grafana stack for k6 metrics (docker-compose)
 security/                 ← ZAP rules, Trivy config (DAST/SCA — black-box)
+chaos/                    ← black-box resilience experiments (Pumba + docker stop)
 docs/
   test-strategy.md        ← master doc: layers, pyramid, tags, gates, tooling
   adr/                    ← Architecture Decision Records (the "why")
@@ -192,7 +193,6 @@ npm run test:a11y             # @a11y
 npm run test:visual           # @visual
 npm run test:performance      # @performance
 npm run test:staging          # all vs staging
-npm run test:production       # all vs production
 
 # Other layers & tooling
 npm run test:unit             # Vitest unit tests (pure factories)
@@ -213,6 +213,12 @@ npm run security:deps         # Trivy SCA + misconfig
 npm run security:secrets      # Gitleaks
 npm run lighthouse            # Lighthouse CI budgets (UI)
 npm run report:allure         # generate + open Allure report
+
+# Property/fuzz & chaos (black-box)
+npm run test:schemathesis     # OpenAPI-driven fuzz (regression gate; excludes known 500s)
+npm run chaos                 # all resilience experiments (db-outage + db-latency)
+npm run chaos:db-outage       # single experiment
+npm run chaos:db-latency      # single experiment (Pumba netem +100ms)
 ```
 
 ## Import conventions

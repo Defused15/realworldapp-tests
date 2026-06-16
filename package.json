@@ -27,7 +27,6 @@
     "test:performance": "playwright test --grep @performance",
     "test:staging": "NODE_ENV=staging playwright test",
     "test:staging:smoke": "NODE_ENV=staging playwright test --project=staging",
-    "test:production": "NODE_ENV=production playwright test",
     "test:db": "vitest run",
     "test:db:watch": "vitest",
     "test:unit": "vitest run --config vitest.unit.config.ts",
