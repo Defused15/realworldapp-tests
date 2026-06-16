@@ -1,0 +1,31 @@
+{
+  "name": "realworldapp-tests",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  // Install test deps + the Chromium browser used by the suite.
+  "postCreateCommand": "npm ci && npx playwright install --with-deps chromium",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-playwright.playwright",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "Prisma.prisma",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+      }
+    }
+  },
+  // App UI/API + Grafana/Prometheus (observability stack).
+  "forwardPorts": [3000, 3001, 3030, 9090],
+  "remoteEnv": {
+    "API_URL": "http://localhost:3001",
+    "BASE_URL": "http://localhost:3000"
+  }
+}
