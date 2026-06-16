@@ -33,3 +33,14 @@ quality ──┬─ security-sca (no app)
 - Booting the app per app-dependent job (hermetic) is duplicated work; accepted
   for isolation over a shared long-lived environment.
 - Superseded the six standalone workflows (removed).
+
+## Update — 2026-06-16 (decision unchanged, deferred piece resolved)
+
+The "app-in-CI is deferred" caveat above is **resolved**. The app now boots in CI
+via a **producer/consumer GHCR pattern**: the app repo publishes an opaque
+`ghcr.io/defused15/rwa-app` image (black-box — CI never reads the source), and
+`setup-app` boots it with a throwaway Postgres per run. With `vars.APP_IMAGE` set,
+all app-dependent gates run for real (the ZAP/DAST gate included). Refinements
+layered on the same gate graph since: the UI gate runs as **two parallel shards**,
+**Schemathesis** is a blocking regression gate, and `nightly.yml` also runs the
+**chaos** experiments. The original decision (sequential, fail-fast gates) stands.

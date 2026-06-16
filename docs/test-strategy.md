@@ -68,6 +68,13 @@ Two ideas that raise the bar above a typical e2e repo:
 | `@visual`      | Screenshot diff                                             | nightly only (Chromium baselines) |
 | `@performance` | Response-time SLAs (in-suite)                               | nightly                           |
 | `@resilience`  | Fault injection (API 500/slow/abort) via route interception | push + nightly                    |
+| `@staging`     | Read-only synthetic smoke vs live Railway deployment        | cron every 6 h + manual           |
+| `@quarantine`  | Known-flaky, isolated (non-gating)                          | push (non-gating job)             |
+
+> Beyond the in-suite tags above, the platform also runs **out-of-process**
+> quality gates: **Schemathesis** property/fuzz (regression gate, driven by
+> `docs/api/openapi.yaml`), **k6** load (SLO gate), **Stryker** mutation, and
+> **chaos** experiments (`chaos/`, non-gating nightly).
 
 ## 4. CI gates (fail-fast, cheap → expensive)
 
@@ -75,29 +82,35 @@ Two ideas that raise the bar above a typical e2e repo:
 
 ```
 quality ──┬─ security-sca (no app)
-          └─ contract → api → db → ui → performance → zap → report
+          └─ setup-app → contract → api → db → ui (sharded ×2) → performance → zap → report
 ```
 
-- App-dependent gates are guarded by `vars.APP_IMAGE` (the app-in-CI piece is
-  deferred — see ADR-0003 and `BACKLOG.md`). Until set, `quality` +
-  `security-sca` run green and the rest are skipped.
+- The app is booted in CI via a **producer/consumer GHCR image**
+  (`ghcr.io/defused15/rwa-app`, black-box) — see ADR-0003. App-dependent gates
+  are guarded by `vars.APP_IMAGE`; the UI gate runs as two parallel shards.
 - `nightly.yml` runs the heavy suites: full UI incl. `@visual`/`@a11y`,
-  cross-browser, perf stress/spike.
+  cross-browser, perf stress/spike, and the **chaos** experiments.
+- `staging-smoke.yml` runs the read-only `@staging` synthetic smoke every 6 h.
+- `release.yml` runs semantic-release after a green pipeline on main
+  (auto version + CHANGELOG + GitHub Release from Conventional Commits).
 
 ## 5. Tooling map
 
-| Concern             | Tool                 | Where                                |
-| ------------------- | -------------------- | ------------------------------------ |
-| UI/API e2e          | Playwright           | `tests/`, `playwright.config.ts`     |
-| Unit + DB integrity | Vitest               | `tests/unit`, `tests/db-integration` |
-| Mutation            | Stryker              | `stryker.config.mjs`                 |
-| Load/perf           | k6                   | `perf/k6/`                           |
-| Observability       | Prometheus + Grafana | `observability/`                     |
-| DAST                | OWASP ZAP            | `security/zap/`                      |
-| SCA / secrets       | Trivy, Gitleaks      | `security/`, `.gitleaks.toml`        |
-| Front-end budgets   | Lighthouse CI        | `lighthouserc.js`                    |
-| Reporting           | Allure               | `allure-results/` → `report:allure`  |
-| Accessibility       | axe-core             | in `@a11y` tests                     |
+| Concern             | Tool                 | Where                                                    |
+| ------------------- | -------------------- | -------------------------------------------------------- |
+| UI/API e2e          | Playwright           | `tests/`, `playwright.config.ts`                         |
+| Unit + DB integrity | Vitest               | `tests/unit`, `tests/db-integration`                     |
+| Mutation            | Stryker              | `stryker.config.mjs`                                     |
+| Property / fuzz     | Schemathesis         | `tests/scripts/schemathesis.sh`, `docs/api/openapi.yaml` |
+| Load/perf           | k6                   | `perf/k6/`                                               |
+| Observability       | Prometheus + Grafana | `observability/`                                         |
+| Chaos / resilience  | Pumba + Docker       | `chaos/`                                                 |
+| DAST                | OWASP ZAP            | `security/zap/`                                          |
+| SCA / secrets       | Trivy, Gitleaks      | `security/`, `.gitleaks.toml`                            |
+| Release             | semantic-release     | `release.yml`, `.releaserc.json`                         |
+| Front-end budgets   | Lighthouse CI        | `lighthouserc.js`                                        |
+| Reporting           | Allure               | `allure-results/` → `report:allure`                      |
+| Accessibility       | axe-core             | in `@a11y` tests                                         |
 
 ## 6. Non-negotiables
 

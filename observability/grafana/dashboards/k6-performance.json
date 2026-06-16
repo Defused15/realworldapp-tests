@@ -47,7 +47,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(k6_http_req_failed_total[1m])) / sum(rate(k6_http_reqs_total[1m]))",
+          "expr": "avg(k6_http_req_failed_rate)",
           "legendFormat": "error rate"
         }
       ]
@@ -71,11 +71,12 @@
     },
     {
       "type": "timeseries",
-      "title": "Checks pass/fail rate",
+      "title": "Checks pass rate (%)",
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "gridPos": {"h": 9, "w": 6, "x": 18, "y": 6},
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}},
       "targets": [
-        {"expr": "sum(rate(k6_checks_total[1m]))", "legendFormat": "checks/s"}
+        {"expr": "avg(k6_checks_rate) * 100", "legendFormat": "pass %"}
       ]
     }
   ]
