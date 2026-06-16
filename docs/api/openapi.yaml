@@ -1,0 +1,349 @@
+openapi: 3.0.3
+info:
+  title: RealWorld App API
+  version: 1.0.0
+  description: >-
+    Hand-authored OpenAPI spec for the Cypress RealWorld App backend (the app
+    ships no spec). Used to drive property/fuzz testing with Schemathesis and as
+    living API documentation. Most endpoints require an authenticated session
+    cookie (connect.sid) set by POST /login.
+servers:
+  - url: http://localhost:3001
+    description: Local / CI (app under test)
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        type: {type: string, example: LOGIN}
+        username: {type: string, minLength: 1}
+        password: {type: string, minLength: 1}
+        remember: {type: boolean}
+      additionalProperties: false
+    SignupRequest:
+      type: object
+      required: [firstName, lastName, username, password]
+      properties:
+        firstName: {type: string, minLength: 1}
+        lastName: {type: string, minLength: 1}
+        username: {type: string, minLength: 1}
+        password: {type: string, minLength: 1}
+        email: {type: string}
+        phoneNumber: {type: string}
+        balance: {type: integer}
+        avatar: {type: string}
+        defaultPrivacyLevel:
+          type: string
+          enum: [public, private, contacts]
+      additionalProperties: false
+    CreateTransactionRequest:
+      type: object
+      required: [transactionType, receiverId, description, amount]
+      properties:
+        transactionType: {type: string, enum: [payment, request]}
+        receiverId: {type: string, minLength: 1}
+        description: {type: string, minLength: 1}
+        amount: {type: integer, minimum: 1}
+        source: {type: string}
+        privacyLevel: {type: string, enum: [public, private, contacts]}
+      additionalProperties: false
+    UpdateTransactionRequest:
+      type: object
+      required: [requestStatus]
+      properties:
+        requestStatus: {type: string, enum: [pending, accepted, rejected]}
+      additionalProperties: false
+    CommentRequest:
+      type: object
+      required: [content]
+      properties:
+        content: {type: string, minLength: 1}
+        transactionId: {type: string}
+      additionalProperties: false
+    LikeRequest:
+      type: object
+      properties:
+        transactionId: {type: string}
+      additionalProperties: false
+    BankAccountRequest:
+      type: object
+      required: [bankName, accountNumber, routingNumber]
+      properties:
+        bankName: {type: string, minLength: 1}
+        accountNumber: {type: string, minLength: 9, maxLength: 12}
+        routingNumber: {type: string, minLength: 9, maxLength: 9}
+      additionalProperties: false
+    UpdateNotificationRequest:
+      type: object
+      required: [isRead]
+      properties:
+        isRead: {type: boolean}
+      additionalProperties: false
+
+security:
+  - sessionCookie: []
+
+paths:
+  /login:
+    post:
+      summary: Authenticate and start a session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LoginRequest'}
+      responses:
+        '200': {description: Logged in}
+        '401': {description: Invalid credentials}
+        '400': {description: Bad request}
+  /logout:
+    post:
+      summary: End the session
+      security: []
+      responses:
+        '200': {description: Logged out}
+        '302': {description: Redirect after logout}
+  /users:
+    get:
+      summary: List users
+      responses:
+        '200': {description: Users list}
+        '401': {description: Unauthenticated}
+    post:
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SignupRequest'}
+      responses:
+        '201': {description: Created}
+        '409': {description: Username already taken}
+        '422': {description: Validation error}
+  /users/search:
+    get:
+      summary: Search users
+      parameters:
+        - {name: q, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Matches}
+        '401': {description: Unauthenticated}
+        '422': {description: Validation error}
+  /users/{userId}:
+    get:
+      summary: Get a user by id (self only)
+      parameters:
+        - {name: userId, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: User}
+        '401': {description: Unauthenticated or not the owner}
+        '422': {description: Invalid id}
+    patch:
+      summary: Update a user
+      parameters:
+        - {name: userId, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SignupRequest'}
+      responses:
+        '204': {description: Updated}
+        '401': {description: Unauthenticated}
+        '422': {description: Validation error}
+  /users/profile/{username}:
+    get:
+      summary: Public profile (firstName, lastName, avatar)
+      security: []
+      parameters:
+        - {name: username, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Profile}
+  /transactions:
+    get:
+      summary: Personal transactions feed
+      responses:
+        '200': {description: Feed}
+        '401': {description: Unauthenticated}
+    post:
+      summary: Create a transaction (payment or request)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateTransactionRequest'}
+      responses:
+        '200': {description: Created}
+        '401': {description: Unauthenticated}
+        '422': {description: Validation error}
+  /transactions/contacts:
+    get:
+      summary: Contacts transactions feed
+      responses:
+        '200': {description: Feed}
+        '401': {description: Unauthenticated}
+  /transactions/public:
+    get:
+      summary: Public transactions feed
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1}}
+        - {name: dateRangeStart, in: query, schema: {type: string, format: date}}
+        - {name: dateRangeEnd, in: query, schema: {type: string, format: date}}
+        - {name: amountMin, in: query, schema: {type: integer}}
+        - {name: amountMax, in: query, schema: {type: integer}}
+      responses:
+        '200': {description: Public feed}
+        '401': {description: Unauthenticated}
+  /transactions/{transactionId}:
+    get:
+      summary: Get a transaction by id
+      parameters:
+        - {name: transactionId, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Transaction}
+        '401': {description: Unauthenticated}
+        '403': {description: Forbidden (private, not a participant)}
+        '404': {description: Not found}
+        '422': {description: Invalid id}
+    patch:
+      summary: Update a transaction request status
+      parameters:
+        - {name: transactionId, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateTransactionRequest'}
+      responses:
+        '204': {description: Updated}
+        '401': {description: Unauthenticated}
+        '422': {description: Validation error}
+  /likes/{transactionId}:
+    get:
+      summary: Likes for a transaction
+      parameters:
+        - {name: transactionId, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Likes}
+        '401': {description: Unauthenticated}
+    post:
+      summary: Like a transaction
+      parameters:
+        - {name: transactionId, in: path, required: true, schema: {type: string}}
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LikeRequest'}
+      responses:
+        '200': {description: Liked}
+        '401': {description: Unauthenticated}
+  /comments/{transactionId}:
+    get:
+      summary: Comments for a transaction
+      parameters:
+        - {name: transactionId, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Comments}
+        '401': {description: Unauthenticated}
+    post:
+      summary: Comment on a transaction
+      parameters:
+        - {name: transactionId, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CommentRequest'}
+      responses:
+        '200': {description: Commented}
+        '401': {description: Unauthenticated}
+  /notifications:
+    get:
+      summary: List notifications
+      responses:
+        '200': {description: Notifications}
+        '401': {description: Unauthenticated}
+  /notifications/bulk:
+    post:
+      summary: Create notifications in bulk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: {type: object}
+      responses:
+        '200': {description: Created}
+        '401': {description: Unauthenticated}
+  /notifications/{notificationId}:
+    patch:
+      summary: Mark a notification read/unread
+      parameters:
+        - {name: notificationId, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateNotificationRequest'}
+      responses:
+        '204': {description: Updated}
+        '401': {description: Unauthenticated}
+  /bankAccounts:
+    get:
+      summary: List bank accounts
+      responses:
+        '200': {description: Bank accounts}
+        '401': {description: Unauthenticated}
+    post:
+      summary: Create a bank account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BankAccountRequest'}
+      responses:
+        '200': {description: Created}
+        '401': {description: Unauthenticated}
+        '422': {description: Validation error}
+  /bankAccounts/{bankAccountId}:
+    get:
+      summary: Get a bank account
+      parameters:
+        - {name: bankAccountId, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Bank account}
+        '401': {description: Unauthenticated}
+    delete:
+      summary: Soft-delete a bank account
+      parameters:
+        - {name: bankAccountId, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Deleted}
+        '401': {description: Unauthenticated}
+  /bankTransfers:
+    get:
+      summary: List bank transfers
+      responses:
+        '200': {description: Bank transfers}
+        '401': {description: Unauthenticated}
+  /contacts/{username}:
+    get:
+      summary: Contacts for a username
+      parameters:
+        - {name: username, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Contacts}
