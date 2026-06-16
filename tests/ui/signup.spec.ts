@@ -242,7 +242,7 @@ test.describe('Signup', () => {
 
     // ─── Accessibility ───────────────────────────────────────────────────────
     test.describe('Accessibility', () => {
-      test.skip('passes axe-core WCAG 2.1 AA scan @a11y', async ({
+      test('passes axe-core WCAG 2.1 AA scan @a11y', async ({
         signupPage,
         page,
       }) => {

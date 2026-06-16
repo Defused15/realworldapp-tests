@@ -79,7 +79,7 @@ test.describe('signup API', () => {
         expect(res.status()).toBe(201);
       });
 
-      test.skip('POST /users with missing firstName returns 422 @regression', async ({
+      test('POST /users with missing firstName returns 422 @regression', async ({
         request,
       }) => {
         // BUG-001: POST /users missing required fields returns 500 HTML with Prisma stack trace,
@@ -98,7 +98,7 @@ test.describe('signup API', () => {
         expect(res.status()).toBe(422);
       });
 
-      test.skip('POST /users with missing lastName returns 422 @regression', async ({
+      test('POST /users with missing lastName returns 422 @regression', async ({
         request,
       }) => {
         // BUG-001: POST /users missing required fields returns 500 HTML with Prisma stack trace,
@@ -115,7 +115,7 @@ test.describe('signup API', () => {
         expect(res.status()).toBe(422);
       });
 
-      test.skip('POST /users with missing username returns 422 @regression', async ({
+      test('POST /users with missing username returns 422 @regression', async ({
         request,
       }) => {
         // BUG-001: POST /users missing required fields returns 500 HTML with Prisma stack trace,
@@ -132,7 +132,7 @@ test.describe('signup API', () => {
         expect(res.status()).toBe(422);
       });
 
-      test.skip('POST /users with missing password returns 422 @regression', async ({
+      test('POST /users with missing password returns 422 @regression', async ({
         request,
       }) => {
         // BUG-001: POST /users missing required fields returns 500 HTML with Prisma stack trace,
@@ -148,7 +148,7 @@ test.describe('signup API', () => {
         expect(res.status()).toBe(422);
       });
 
-      test.skip('POST /users 422 response includes validation errors array @regression', async ({
+      test('POST /users 422 response includes validation errors array @regression', async ({
         request,
       }) => {
         // BUG-001: POST /users missing required fields returns 500 HTML with Prisma stack trace,
@@ -159,7 +159,7 @@ test.describe('signup API', () => {
         expect(Array.isArray(body.errors)).toBe(true);
       });
 
-      test.skip('POST /users with duplicate username returns 409 @regression', async ({
+      test('POST /users with duplicate username returns 409 @regression', async ({
         request,
       }) => {
         // BUG-002: POST /users with a duplicate username returns 500 HTML (Prisma unique constraint
@@ -265,7 +265,7 @@ test.describe('signup API', () => {
         }
       });
 
-      test.skip('POST /users response must NOT include password hash @security', async ({
+      test('POST /users response must NOT include password hash @security', async ({
         request,
       }) => {
         // BUG-003: POST /users returns the bcrypt password hash in user.password (OWASP API3:2023 —
