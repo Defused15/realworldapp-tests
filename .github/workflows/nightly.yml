@@ -62,3 +62,20 @@ jobs:
       # it is excluded here on purpose.
       - run: PROFILE=stress npm run perf:all
       - run: PROFILE=spike npm run perf:all
+
+  chaos:
+    name: Chaos / resilience (DB outage + latency)
+    if: ${{ vars.APP_IMAGE != '' }}
+    runs-on: ubuntu-latest
+    # Non-gating for now: experiments document failure modes (fail-fast,
+    # auto-recovery, latency amplification) rather than guard a regression we
+    # own. Flip continue-on-error off to make resilience a hard nightly gate.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-app
+      # The Postgres container name is compose-project dependent; discover it by
+      # image so the experiments target the right container in CI.
+      - name: Resolve DB container
+        run: echo "DB_CONTAINER=$(docker ps --filter ancestor=postgres:16-alpine --format '{{.Names}}' | head -1)" >> "$GITHUB_ENV"
+      - run: npm run chaos

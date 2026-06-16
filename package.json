@@ -26,6 +26,7 @@
     "test:visual": "playwright test --grep @visual",
     "test:performance": "playwright test --grep @performance",
     "test:staging": "NODE_ENV=staging playwright test",
+    "test:staging:smoke": "NODE_ENV=staging playwright test --project=staging",
     "test:production": "NODE_ENV=production playwright test",
     "test:db": "vitest run",
     "test:db:watch": "vitest",
@@ -51,6 +52,9 @@
     "security:deps": "trivy fs --include-dev-deps --config security/trivy/trivy.yaml .",
     "security:secrets": "gitleaks detect --source . --config .gitleaks.toml --redact --verbose",
     "test:schemathesis": "bash tests/scripts/schemathesis.sh",
+    "chaos": "bash chaos/run-all.sh",
+    "chaos:db-outage": "bash chaos/experiments/db-outage.sh",
+    "chaos:db-latency": "bash chaos/experiments/db-latency.sh",
     "report:allure": "allure generate allure-results --clean -o allure-report && allure open allure-report"
   },
   "keywords": [],
