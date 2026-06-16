@@ -37,6 +37,21 @@ malformed commit silently breaks the release pipeline.
 - Delete the branch after the PR merges (local + remote).
 - `dependabot/*` branches are created automatically — leave them alone.
 
+### Granularity — one branch = one reviewable PR
+
+The branch maps to a **coherent PR**, not mechanically to a test type:
+
+- **One feature-task → one branch**, even if it spans several test types — each
+  type is a separate Conventional Commit inside it. E.g. full coverage for `X`:
+  `test/x-coverage` with commits `test(ui): …`, `test(api): …`, `test(perf): …`
+  → one PR `test: add full coverage for X`.
+- **Separate asks / unrelated features → separate branches & PRs.** E.g. Playwright
+  for `X` and a k6 scenario for `Y` are two branches (`test/x-ui`, `perf/y-k6`).
+
+Default: a branch per feature-task; split into multiple PRs only when the work is
+genuinely independent or a single PR would grow too large to review. When it's
+ambiguous, ask before branching.
+
 ## 2. Commit messages — Conventional Commits
 
 ```
