@@ -21,13 +21,13 @@ jobs:
           github.event.workflow_run.head_branch == 'master' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0 # full history for commit analysis
           ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false # semantic-release authenticates via GITHUB_TOKEN
-      - uses: actions/setup-node@v4
-        with: {node-version: '24', cache: npm} # semantic-release needs Node >=24.10 (or ^22.14)
+      - uses: actions/setup-node@v6
+        with: {node-version: '22', cache: npm} # 22.x satisfies semantic-release's ^22.14
       - run: npm ci
       - run: npx semantic-release
         env:

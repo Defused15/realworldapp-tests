@@ -4,6 +4,9 @@
   "private": true,
   "description": "Playwright E2E test suite for RealWorld app",
   "main": "index.js",
+  "engines": {
+    "node": ">=22.14"
+  },
   "scripts": {
     "lint": "gts lint",
     "clean": "gts clean",

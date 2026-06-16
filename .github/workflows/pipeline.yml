@@ -32,9 +32,9 @@ jobs:
     name: Quality (lint · types · build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: {node-version: '20', cache: npm}
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with: {node-version: '22', cache: npm}
       - run: npm ci
       - run: npm run compile # tsc --noEmit equivalent (build)
       - run: npm run lint
@@ -42,7 +42,7 @@ jobs:
       - name: Coverage summary → job summary
         if: always()
         run: node tests/scripts/coverage-summary.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with: {name: unit-coverage, path: reports/coverage, retention-days: 30}
 
@@ -51,7 +51,7 @@ jobs:
     needs: quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with: {fetch-depth: 0} # gitleaks needs full history
       # Run the gitleaks CLI via Docker instead of gitleaks/gitleaks-action@v2:
       # the action makes an unauthenticated GitHub API call to check the account
@@ -63,7 +63,7 @@ jobs:
             detect --source=/repo --config=/repo/.gitleaks.toml \
             --redact --verbose --no-banner
       - name: Trivy (dependencies + misconfig)
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -79,7 +79,7 @@ jobs:
     # compose stack), not as a GitHub Actions service.
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-app
       - run: npm run test:contract
 
@@ -90,7 +90,7 @@ jobs:
     runs-on: ubuntu-latest
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-app
       # PR → @smoke (fast); push → full api project. @quarantine excluded from
       # the gate (runs non-gating in the `quarantine` job below).
@@ -116,7 +116,7 @@ jobs:
       DB_USER: postgres
       DB_PASSWORD: postgres
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-app
       - run: npm run test:db
 
@@ -132,7 +132,7 @@ jobs:
         shard: [1, 2]
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-app
       # PR → @smoke; push → smoke + regression + security. --shard splits the run.
       # @quarantine is excluded so known-flaky tests can't break the gate (they
@@ -144,7 +144,7 @@ jobs:
       # Flaky analytics: surface tests that only passed on retry (informative).
       - run: npm run flaky:summary
         if: always()
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: allure-results-${{ matrix.shard }} # unique per shard
@@ -158,7 +158,7 @@ jobs:
     runs-on: ubuntu-latest
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-app
       - uses: grafana/setup-k6-action@v1
       # All feature scenarios at the smoke profile; thresholds (SLOs) in
@@ -172,13 +172,13 @@ jobs:
     runs-on: ubuntu-latest
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-app
       # Run zap-baseline.py directly (same as `npm run security:zap`) instead of
       # zaproxy/action-baseline: that action's bundled artifact upload uses the
       # retired v3 artifact API ("artifact name zap_scan is not valid") and its
       # issue-filing step needs extra perms. Docker run gives us full control and
-      # we publish the report ourselves with upload-artifact@v4.
+      # we publish the report ourselves with upload-artifact.
       - name: ZAP baseline scan
         run: |
           mkdir -p zap-out && cp security/zap/rules.tsv zap-out/ && chmod -R 777 zap-out
@@ -186,7 +186,7 @@ jobs:
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py -t "${BASE_URL}" -c rules.tsv \
             -r report.html -J report.json -w report.md -I
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: zap-report
@@ -207,12 +207,12 @@ jobs:
     continue-on-error: true
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-app
       - name: Run Schemathesis
         continue-on-error: true
         run: npm run test:schemathesis
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: schemathesis-report
@@ -233,7 +233,7 @@ jobs:
     continue-on-error: true
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-app
       - run: npm run test:quarantine
         continue-on-error: true
@@ -257,16 +257,16 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: {node-version: '20', cache: npm}
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with: {node-version: '22', cache: npm}
       - run: npm ci
       # Allure CLI needs a JRE; the bundled openjdk:8-jre-alpine image that
       # simple-elf/allure-report-action@v1.9 used was pulled from Docker Hub,
       # so we generate the report with the local CLI instead.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with: {distribution: temurin, java-version: '17'}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: allure-results-* # merge results from every UI shard
           path: allure-results
@@ -274,7 +274,7 @@ jobs:
       - run: npx allure generate allure-results --clean -o allure-report
       # Fold the unit-coverage HTML report into the published site (served at
       # /coverage alongside the Allure report at the root).
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: {name: unit-coverage, path: allure-report/coverage}
         continue-on-error: true # coverage may be absent on partial runs
       - name: Report links → job summary
@@ -288,12 +288,12 @@ jobs:
             echo "- Schemathesis fuzz + per-shard flaky summaries: see the job artifacts above."
           } >> "$GITHUB_STEP_SUMMARY"
       # Always keep the report as a downloadable artifact (covers PRs too).
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: {name: allure-report, path: allure-report}
       # Publish to GitHub Pages on push only → stable URL for the latest report.
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: ${{ github.event_name != 'pull_request' }}
         with: {path: allure-report}
       - id: deployment
         if: ${{ github.event_name != 'pull_request' }}
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
