@@ -78,18 +78,57 @@ function severityLabel(sev) {
   return `severity:${String(sev).toLowerCase()}`;
 }
 
+const BRANCH = process.env.GITHUB_REF_NAME || 'master';
+
+// Pull the per-bug section out of its markdown report so the full reproduction &
+// analysis lives INSIDE the GitHub issue (no click-through to a relative path that
+// 404s). The markdown files stay the single source of truth — we just inline the
+// matching `## <id> …` heading's body up to the next heading or `---` rule.
+function readReportSection(reportPath, id) {
+  let text;
+  try {
+    text = readFileSync(resolve(REPO_ROOT, reportPath), 'utf8');
+  } catch {
+    return null;
+  }
+  const lines = text.split('\n');
+  let start = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^#{2,3}\s+([A-Z0-9-]+)\b/);
+    if (m && m[1] === id) {
+      start = i + 1; // skip the heading itself — the issue title already carries it
+      break;
+    }
+  }
+  if (start === -1) return null;
+  let end = lines.length;
+  for (let i = start; i < lines.length; i++) {
+    if (/^#{2,3}\s+[A-Z0-9-]+/.test(lines[i]) || /^---\s*$/.test(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+  return lines.slice(start, end).join('\n').trim();
+}
+
 function issueBody(bug) {
-  return [
-    `**Bug ID:** \`${bug.id}\``,
-    `**Severity:** ${bug.severity}`,
-    `**Area:** ${bug.area}`,
+  // Absolute permalink to the report file (a relative `docs/...` link resolves
+  // against the issue URL and 404s).
+  const permalink = `https://github.com/${repo}/blob/${BRANCH}/${bug.report}`;
+  const detail = readReportSection(bug.report, bug.id);
+  const parts = [
+    `> **Bug ID:** \`${bug.id}\` · **Severity:** ${bug.severity} · **Area:** ${bug.area}`,
     '',
-    `Full reproduction & analysis: [\`${bug.report}\`](${bug.report})`,
-    '',
+  ];
+  if (detail) parts.push(detail, '');
+  parts.push(
     '---',
-    '_Auto-managed by `.github/workflows/bug-report-sync.yml` from `docs/bug-reports/bugs.yml`._',
-    '_Close by setting `status: resolved` in the manifest (do not close by hand)._',
-  ].join('\n');
+    `📄 **Full report:** [\`${bug.report}\`](${permalink})`,
+    '',
+    '<sub>Auto-managed by `.github/workflows/bug-report-sync.yml` from `docs/bug-reports/bugs.yml`. ' +
+      'Close by setting `status: resolved` in the manifest — do not close by hand.</sub>'
+  );
+  return parts.join('\n');
 }
 
 async function main() {
@@ -112,6 +151,7 @@ async function main() {
   let created = 0,
     closed = 0,
     reopened = 0,
+    updated = 0,
     untouched = 0;
 
   for (const bug of bugs) {
@@ -119,19 +159,26 @@ async function main() {
     const labels = [baseLabel, severityLabel(bug.severity)];
     const issue = byId.get(bug.id);
     const wantOpen = (bug.status || 'open') === 'open';
+    const body = issueBody(bug);
 
     if (wantOpen) {
       if (!issue) {
         console.log(`CREATE ${title}`);
-        await gh('POST', '/issues', {title, body: issueBody(bug), labels});
+        await gh('POST', '/issues', {title, body, labels});
         created++;
       } else if (issue.state === 'closed') {
         console.log(`REOPEN #${issue.number} ${title}`);
-        await gh('PATCH', `/issues/${issue.number}`, {state: 'open'});
+        await gh('PATCH', `/issues/${issue.number}`, {state: 'open', title, body});
         await gh('POST', `/issues/${issue.number}/comments`, {
           body: 'Reopened: manifest marked this bug `open` again.',
         });
         reopened++;
+      } else if ((issue.body || '').trim() !== body.trim() || issue.title !== title) {
+        // Keep an already-open issue's title & body in lock-step with the manifest
+        // (e.g. after the template changed) without spamming a comment.
+        console.log(`UPDATE #${issue.number} ${title}`);
+        await gh('PATCH', `/issues/${issue.number}`, {title, body});
+        updated++;
       } else {
         untouched++;
       }
@@ -149,7 +196,7 @@ async function main() {
     }
   }
 
-  const summary = `Bug sync: ${created} created, ${closed} closed, ${reopened} reopened, ${untouched} unchanged (${bugs.length} bugs in manifest).`;
+  const summary = `Bug sync: ${created} created, ${closed} closed, ${reopened} reopened, ${updated} updated, ${untouched} unchanged (${bugs.length} bugs in manifest).`;
   console.log(summary);
   if (process.env.GITHUB_STEP_SUMMARY) {
     const {appendFileSync} = await import('node:fs');
