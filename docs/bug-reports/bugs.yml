@@ -50,7 +50,7 @@ bugs:
     title: 'PATCH /users/{userId} to a taken username → 500 (should be 409)'
     severity: Medium
     area: API
-    status: open
+    status: resolved # re-verified 2026-06-16: now returns 422 (no 500 crash)
     report: docs/bug-reports/api-fuzz-bugs.md
   - id: BUG-API-FUZZ-007
     title: 'Write ops on a non-existent transactionId → 500 (null dereference)'
@@ -70,25 +70,25 @@ bugs:
     title: 'Missing required fields return 500 HTML instead of 422 JSON'
     severity: High
     area: API
-    status: open
+    status: resolved # re-verified 2026-06-16: now returns 422 JSON {errors:[...]}
     report: docs/bug-reports/signin-bugs.md
   - id: BUG-002
     title: 'Duplicate username returns 500 HTML instead of 409 JSON'
     severity: Medium
     area: API
-    status: open
+    status: resolved # re-verified 2026-06-16: now returns 409
     report: docs/bug-reports/signin-bugs.md
   - id: BUG-003
     title: 'POST /login response exposes bcrypt password hash'
     severity: High
     area: Security
-    status: open
+    status: resolved # re-verified 2026-06-16: login response no longer contains password
     report: docs/bug-reports/signin-bugs.md
   - id: BUG-004
     title: 'POST /users response exposes bcrypt password hash'
     severity: High
     area: Security
-    status: open
+    status: resolved # re-verified 2026-06-16: signup response no longer contains password
     report: docs/bug-reports/signin-bugs.md
   - id: BUG-005
     title: "Sign Up link click doesn't navigate due to Formik DOM re-render"
@@ -120,7 +120,7 @@ bugs:
     title: 'Date filter params crash GET /transactions/public with 500'
     severity: Medium
     area: API
-    status: open
+    status: resolved # re-verified 2026-06-16: date-filter params now return 200
     report: docs/bug-reports/home-bugs.md
   - id: BUG-HOME-A11Y-001
     title: 'Transaction list role="grid" lacks required row children + a11y debt'
@@ -146,7 +146,7 @@ bugs:
     title: 'GET /transactions/:id returns 200 for non-existent IDs'
     severity: Medium
     area: API
-    status: open
+    status: resolved # re-verified 2026-06-16: now returns 404
     report: docs/bug-reports/transaction-bugs.md
   - id: BUG-TXN-SEC-001
     title: 'IDOR: private transaction readable by unrelated authenticated user'

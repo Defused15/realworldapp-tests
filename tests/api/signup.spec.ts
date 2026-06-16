@@ -82,10 +82,6 @@ test.describe('signup API', () => {
       test('POST /users with missing firstName returns 422 @regression', async ({
         request,
       }) => {
-        // BUG-001: POST /users missing required fields returns 500 HTML with Prisma stack trace,
-        // not 422 JSON. This test is skipped until the app adds proper input validation.
-        // Expected: 422 with validation error
-        // Actual: 500 HTML (Prisma stack trace)
         const user = buildUser();
         const res = await request.post('/users', {
           data: {
@@ -101,8 +97,6 @@ test.describe('signup API', () => {
       test('POST /users with missing lastName returns 422 @regression', async ({
         request,
       }) => {
-        // BUG-001: POST /users missing required fields returns 500 HTML with Prisma stack trace,
-        // not 422 JSON.
         const user = buildUser();
         const res = await request.post('/users', {
           data: {
@@ -118,8 +112,6 @@ test.describe('signup API', () => {
       test('POST /users with missing username returns 422 @regression', async ({
         request,
       }) => {
-        // BUG-001: POST /users missing required fields returns 500 HTML with Prisma stack trace,
-        // not 422 JSON.
         const user = buildUser();
         const res = await request.post('/users', {
           data: {
@@ -135,8 +127,6 @@ test.describe('signup API', () => {
       test('POST /users with missing password returns 422 @regression', async ({
         request,
       }) => {
-        // BUG-001: POST /users missing required fields returns 500 HTML with Prisma stack trace,
-        // not 422 JSON.
         const user = buildUser();
         const res = await request.post('/users', {
           data: {
@@ -151,8 +141,6 @@ test.describe('signup API', () => {
       test('POST /users 422 response includes validation errors array @regression', async ({
         request,
       }) => {
-        // BUG-001: POST /users missing required fields returns 500 HTML with Prisma stack trace,
-        // not 422 JSON. When fixed, the response should include a validation errors array.
         const res = await request.post('/users', {data: {}});
         expect(res.status()).toBe(422);
         const body = await res.json();
@@ -162,8 +150,6 @@ test.describe('signup API', () => {
       test('POST /users with duplicate username returns 409 @regression', async ({
         request,
       }) => {
-        // BUG-002: POST /users with a duplicate username returns 500 HTML (Prisma unique constraint
-        // violation), not 409 JSON. This test is skipped until the app handles the conflict gracefully.
         const user = buildUser();
         await request.post('/users', {
           data: {...user, confirmPassword: user.password},
@@ -268,10 +254,8 @@ test.describe('signup API', () => {
       test('POST /users response must NOT include password hash @security', async ({
         request,
       }) => {
-        // BUG-003: POST /users returns the bcrypt password hash in user.password (OWASP API3:2023 —
-        // Excessive Data Exposure). The response should never include any password field.
-        // Expected: user.password absent from response
-        // Actual: user.password is present and contains the bcrypt hash
+        // OWASP API3:2023 (Excessive Data Exposure): the response must never include a
+        // password field. BUG-003/004 (this leak) was re-verified fixed on 2026-06-16.
         const user = buildUser();
         const res = await request.post('/users', {
           data: {...user, confirmPassword: user.password},
@@ -358,15 +342,12 @@ test.describe('signup API', () => {
 
       test('user object has no unexpected top-level fields @contract', () => {
         const user = body.user as Record<string, unknown>;
-        // 'password' is included in the allowlist because of BUG-003 — the app currently leaks
-        // the bcrypt hash in this field. Remove 'password' from this allowlist once BUG-003 is fixed.
         const allowedFields = new Set([
           'id',
           'uuid',
           'firstName',
           'lastName',
           'username',
-          'password', // BUG-003: bcrypt hash leak — should be removed from response
           'balance',
           'defaultPrivacyLevel',
           'createdAt',
@@ -422,8 +403,7 @@ test.describe('signup API', () => {
         });
         const duration = Date.now() - start;
 
-        // BUG-002: currently returns 500 HTML; we still assert the timing regardless of status
-        expect([409, 500]).toContain(res.status());
+        expect(res.status()).toBe(409); // duplicate username → conflict
         expect(duration).toBeLessThan(500); // SLA: error path must be fast too
       });
     });
