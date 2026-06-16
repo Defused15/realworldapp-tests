@@ -99,10 +99,6 @@ test.describe('transaction API', () => {
       test('returns 404 for non-existent transaction id @regression', async ({
         request,
       }) => {
-        test.skip(
-          true,
-          'BUG-TXN-API-001: GET /transactions/nonexistent-tx-id-000 returns 200 with empty/null body instead of 404 — server should return 404 Not Found for unknown transaction IDs',
-        );
         await loginAs(request, CREDS);
         const res = await request.get('/transactions/nonexistent-tx-id-000');
         expect(res.status()).toBe(404);
@@ -133,10 +129,6 @@ test.describe('transaction API', () => {
       test('IDOR: user B cannot GET a private transaction that does not belong to them @security', async ({
         playwright,
       }) => {
-        test.skip(
-          true,
-          'BUG-TXN-SEC-001: IDOR — GET /transactions/:id with a private transaction returns 200 to an unrelated authenticated user instead of 401/403/404',
-        );
         // Create a fresh user (user A) and a private transaction
         const ctxA = await playwright.request.newContext({
           baseURL: process.env.API_URL,

@@ -58,10 +58,6 @@ test.describe('home API', () => {
       test('supports dateStart and dateEnd query params @regression', async ({
         request,
       }) => {
-        test.skip(
-          true,
-          'BUG-HOME-001: GET /transactions/public with dateStart/dateEnd returns 500 — date filter params crash the server',
-        );
         await loginAs(request, CREDS);
         const res = await request.get(
           '/transactions/public?page=1&limit=10&dateStart=2020-01-01&dateEnd=2030-12-31',

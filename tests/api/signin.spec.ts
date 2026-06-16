@@ -168,7 +168,7 @@ test.describe('signin API', () => {
     });
 
     // BUG REPORT — missing required fields return 500 HTML instead of 422 JSON
-    test.skip('POST /users with missing firstName returns 422 @regression', async ({
+    test('POST /users with missing firstName returns 422 @regression', async ({
       request,
     }) => {
       // SEVERITY: HIGH
@@ -184,7 +184,7 @@ test.describe('signin API', () => {
       expect(res.status()).toBe(422);
     });
 
-    test.skip('POST /users with missing lastName returns 422 @regression', async ({
+    test('POST /users with missing lastName returns 422 @regression', async ({
       request,
     }) => {
       // Same bug as missing firstName — see above.
@@ -194,7 +194,7 @@ test.describe('signin API', () => {
       expect(res.status()).toBe(422);
     });
 
-    test.skip('POST /users with missing username returns 422 @regression', async ({
+    test('POST /users with missing username returns 422 @regression', async ({
       request,
     }) => {
       // Same bug as missing firstName — see above.
@@ -204,7 +204,7 @@ test.describe('signin API', () => {
       expect(res.status()).toBe(422);
     });
 
-    test.skip('POST /users with missing password returns 422 @regression', async ({
+    test('POST /users with missing password returns 422 @regression', async ({
       request,
     }) => {
       // Same bug as missing firstName — see above.
@@ -214,7 +214,7 @@ test.describe('signin API', () => {
       expect(res.status()).toBe(422);
     });
 
-    test.skip('POST /users 422 response includes validation errors array @regression', async ({
+    test('POST /users 422 response includes validation errors array @regression', async ({
       request,
     }) => {
       // Same bug — missing fields cause 500 HTML, not 422 JSON with an errors array.
@@ -230,7 +230,7 @@ test.describe('signin API', () => {
     });
 
     // BUG REPORT — duplicate username returns 500 + Prisma HTML instead of 409 JSON
-    test.skip('POST /users with duplicate username returns 409 @regression', async ({
+    test('POST /users with duplicate username returns 409 @regression', async ({
       request,
     }) => {
       // SEVERITY: HIGH
@@ -388,7 +388,7 @@ test.describe('signin API', () => {
     });
 
     // BUG REPORT — password hash exposed in login response
-    test.skip('POST /login response must NOT include password hash @security', async ({
+    test('POST /login response must NOT include password hash @security', async ({
       request,
     }) => {
       // SEVERITY: HIGH
@@ -413,7 +413,7 @@ test.describe('signin API', () => {
     });
 
     // BUG REPORT — password hash exposed in register response
-    test.skip('POST /users response must NOT include password hash @security', async ({
+    test('POST /users response must NOT include password hash @security', async ({
       request,
     }) => {
       // SEVERITY: HIGH
@@ -527,7 +527,7 @@ test.describe('signin API', () => {
     });
 
     // BUG REPORT — password hash in response body is a contract violation
-    test.skip('POST /login user object must not contain password field @contract', () => {
+    test('POST /login user object must not contain password field @contract', () => {
       // SEVERITY: HIGH
       // BUG: The login response schema includes `user.password` which contains
       // the full bcrypt hash. This is a data exposure bug (OWASP API3).
