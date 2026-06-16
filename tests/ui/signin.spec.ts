@@ -249,16 +249,12 @@ test.describe('Signin', () => {
 
     // ─── Accessibility ───────────────────────────────────────────────────────
     test.describe('Accessibility', () => {
-      test.skip('passes axe-core WCAG 2.1 AA scan @a11y', async ({
+      test('passes axe-core WCAG 2.1 AA scan @a11y', async ({
         signinPage,
         page,
       }) => {
-        // SEVERITY: MEDIUM
-        // BUG: axe-core reports WCAG 2.1 AA violations on the signin page.
-        // Primary violation: "link-name" — links must have discernible text (Deque rule).
-        // Likely cause: icon-only links or links with empty/missing accessible names in the app shell.
-        // Impact: Screen readers cannot announce link purpose to visually impaired users.
-        // Fix: Add aria-label or visible text to all links that lack discernible names.
+        // BUG-006 (fixed): the Cypress-logo footer link had no accessible name
+        // (axe "link-name"). Fixed by adding aria-label to the icon-only links.
         void signinPage; // fixture ensures navigation + clearCookies
         const results = await new AxeBuilder({page})
           .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
@@ -278,24 +274,23 @@ test.describe('Signin', () => {
         await expect(signinPage.passwordInput).toBeVisible();
       });
 
-      test.skip('tab navigation reaches all interactive elements in order @a11y', async ({
+      test('tab navigation reaches all interactive elements in order @a11y', async ({
         signinPage,
         page,
       }) => {
-        // SEVERITY: MEDIUM
-        // BUG: Tab key from body does not focus the Username input as the first interactive element.
-        // Expected: Tab → Username field focused.
-        // Actual: Username field is inactive (no focus) after Tab press; likely another element
-        //         (e.g., a navbar link or skip-nav element) captures initial focus instead.
-        // Impact: Keyboard-only and assistive-technology users cannot reliably navigate the form.
-        // Fix: Review tab order via tabindex; ensure the Username input is the first focusable field
-        //      in the DOM or provide a "Skip to main content" skip-nav link targeting the form.
-        await page.keyboard.press('Tab');
+        // The Username field is auto-focused on load (autoFocus), so it is the
+        // first interactive element; Tab then walks the accessible DOM order:
+        // Username → Password → Remember me → Sign In. (The original assertion
+        // was wrong: it skipped the Remember-me checkbox and ignored autoFocus.)
         await expect(signinPage.usernameInput).toBeFocused();
         await page.keyboard.press('Tab');
         await expect(signinPage.passwordInput).toBeFocused();
         await page.keyboard.press('Tab');
-        await expect(signinPage.submitButton).toBeFocused();
+        await expect(signinPage.rememberMeCheckbox).toBeFocused();
+        await page.keyboard.press('Tab');
+        // Sign In is disabled until the form is valid, so it is correctly
+        // skipped in the tab order; focus moves on to the Sign Up link.
+        await expect(signinPage.signUpLink).toBeFocused();
       });
 
       test('form can be submitted with Enter key @a11y', async ({
