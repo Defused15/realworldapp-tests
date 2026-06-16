@@ -431,7 +431,7 @@ Feature: Transaction Detail
 #   BUG-TXN-UI-001 (Unknown transaction ID — no error/redirect):
 #     Navigating directly to /transaction/<nonexistent-id> shows no content and
 #     no error, and does not redirect. The "Transaction Detail" header never
-#     appears. See docs/bug-reports/transaction-bugs.md.
+#     appears. See BUG-TXN-UI-001 in docs/bug-reports/bugs.yml.
 #
 #   BUG-TXN-API-001 (GET /transactions/{id} returns 200 for non-existent IDs):
 #     The endpoint returns 200 instead of 404 for IDs that do not exist.

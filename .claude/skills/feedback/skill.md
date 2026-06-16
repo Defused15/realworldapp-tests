@@ -21,7 +21,7 @@ Example: `/feedback signin`
 2. **Reads** `test-results/` for any `error-context.md` files left by debug agents
 3. **Spawns** the `feedback-agent` with all extracted data
 4. **Produces:**
-   - `docs/bug-reports/<feature>-bugs.md` — formal bug report
+   - `docs/bug-reports/bugs.yml` — a structured entry per bug (one self-contained GitHub issue each via the sync workflow; no markdown report files)
    - Updated agent files — rules added to prevent same errors
    - Updated `CLAUDE.md` — project-specific learnings
 

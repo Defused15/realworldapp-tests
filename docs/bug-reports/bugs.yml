@@ -1,13 +1,27 @@
-# Bug manifest — single source of truth for the GitHub issue sync workflow
+# Bug manifest — SINGLE SOURCE OF TRUTH for app defects and the GitHub issue sync
 # (.github/workflows/bug-report-sync.yml).
 #
-# Each entry maps a documented app defect to a GitHub issue:
+# Each entry is one app defect = one GitHub issue. The full reproduction & analysis
+# lives HERE (structured fields below), and the sync renders it directly into the
+# issue body — there are no separate markdown report files to click through.
+#
 #   - status: open      → workflow ensures an OPEN issue exists (creates if missing)
 #   - status: resolved  → workflow CLOSES the matching issue with a comment
 #
 # Issues are matched idempotently by the `[<id>]` prefix in the issue title and the
-# `app-bug` label, so re-runs never create duplicates. The human-readable detail
-# lives in the linked `report` markdown file.
+# `app-bug` label, so re-runs never create duplicates. An open issue's title/body is
+# refreshed in place when it drifts from this manifest.
+#
+# Fields per bug:
+#   id, title, severity, area, status   (required)
+#   endpoint    — the specific endpoint / UI surface           (optional)
+#   tags        — Playwright test tags this maps to            (optional)
+#   test_file   — where it is covered / skipped                (optional)
+#   steps       — reproduction (block scalar, may hold curl)   (optional)
+#   expected    — correct behavior                             (optional)
+#   actual      — observed (buggy) behavior                    (optional)
+#   impact      — why it matters                               (optional)
+#   fix         — suggested fix                                (optional)
 #
 # These are defects in the application under test (cypress-realworld-app), tracked
 # in THIS repo (the QA system of record). We do not patch the app — black-box suite.
@@ -21,49 +35,123 @@ bugs:
     severity: High
     area: API
     status: open
-    report: docs/bug-reports/api-fuzz-bugs.md
+    endpoint: POST /users
+    tags: [security, contract]
+    steps: |-
+      POST /users with a type-violating body (e.g. `avatar` as a boolean):
+
+      ```bash
+      curl -X POST -H 'Content-Type: application/json' \
+        -d '{"avatar": false, "balance": 0, "defaultPrivacyLevel": "public", "email": "", "firstName": "0", "lastName": "0", "password": "0", "phoneNumber": "", "username": "0"}' \
+        http://localhost:3001/users
+      ```
+    expected: '422 Validation error (typed/validated request body)'
+    actual: '500 Internal Server Error — PrismaClientValidationError: Invalid prisma.user.create() invocation; the bad value reaches Prisma unvalidated.'
+    fix: Add request-body validation (express-validator) before the Prisma call and return 422 on type/missing violations.
+
   - id: BUG-API-FUZZ-002
     title: 'POST /transactions with non-existent receiverId → 500 (FK violation)'
     severity: High
     area: API
     status: open
-    report: docs/bug-reports/api-fuzz-bugs.md
+    endpoint: POST /transactions
+    tags: [regression, contract]
+    steps: |-
+      ```bash
+      curl -X POST -H 'Content-Type: application/json' \
+        -d '{"amount": 1, "description": "0", "privacyLevel": "public", "receiverId": "0", "source": "", "transactionType": "payment"}' \
+        http://localhost:3001/transactions
+      ```
+    expected: '422 / 404 — receiver does not exist'
+    actual: '500 — PrismaClientKnownRequestError: Foreign key constraint violated. The app does not verify receiverId references a real user before insert.'
+
   - id: BUG-API-FUZZ-003
     title: 'POST /notifications/bulk with non-array items → 500 (not iterable)'
     severity: Medium
     area: API
     status: open
-    report: docs/bug-reports/api-fuzz-bugs.md
+    endpoint: POST /notifications/bulk
+    tags: [regression, contract]
+    steps: |-
+      ```bash
+      curl -X POST -H 'Content-Type: application/json' -d '{"items": {}}' \
+        http://localhost:3001/notifications/bulk
+      ```
+    expected: '422 — items must be an array'
+    actual: '500 — TypeError: notifications is not iterable (createNotifications). The handler iterates `items` without checking it is an array.'
+
   - id: BUG-API-FUZZ-004
     title: 'GET /transactions/public with unknown query param → 500'
     severity: Medium
     area: API
     status: open
-    report: docs/bug-reports/api-fuzz-bugs.md
+    endpoint: GET /transactions/public
+    tags: [regression]
+    steps: |-
+      ```bash
+      curl -X GET 'http://localhost:3001/transactions/public?page=1&foo=42' \
+        -H 'Cookie: connect.sid=...'
+      ```
+    expected: '200 (unknown params ignored) or 422'
+    actual: '500 — PrismaClientValidationError: Invalid prisma.transaction.findMany() with senderId: { in: [] }. An unrecognized query param collapses the filter-building logic into an invalid Prisma query.'
+
   - id: BUG-API-FUZZ-005
     title: 'GET /contacts/{username} for unknown username → 500'
     severity: Medium
     area: API
     status: open
-    report: docs/bug-reports/api-fuzz-bugs.md
+    endpoint: GET /contacts/{username}
+    tags: [regression]
+    steps: |-
+      ```bash
+      curl -X GET 'http://localhost:3001/contacts/no-such-user' -H 'Cookie: connect.sid=...'
+      ```
+    expected: '404 / 200 with empty list'
+    actual: "500 — TypeError: Cannot read properties of null (reading 'id') in getContactsByUsername. The user lookup returns null and the code dereferences .id without a guard."
+
   - id: BUG-API-FUZZ-006
     title: 'PATCH /users/{userId} to a taken username → 500 (should be 409)'
     severity: Medium
     area: API
     status: resolved # re-verified 2026-06-16: now returns 422 (no 500 crash)
-    report: docs/bug-reports/api-fuzz-bugs.md
+    endpoint: PATCH /users/{userId}
+    tags: [regression, contract]
+    steps: 'PATCH /users/{ownId} setting `username` to one already used by another user.'
+    expected: '409 Conflict (username already taken)'
+    actual: '500 — PrismaClientKnownRequestError: Unique constraint failed on (username). The collision was not caught and mapped to a 409.'
+
   - id: BUG-API-FUZZ-007
     title: 'Write ops on a non-existent transactionId → 500 (null dereference)'
     severity: High
     area: API
     status: open
-    report: docs/bug-reports/api-fuzz-bugs.md
+    endpoint: PATCH /transactions/{id}, POST /likes/{id}, POST /comments/{id}
+    tags: [regression]
+    steps: |-
+      Any of:
+
+      ```bash
+      curl -X PATCH -d '{"requestStatus":"pending"}' -H 'Content-Type: application/json' \
+        http://localhost:3001/transactions/0H0PmLWSLK8m6L5qq   # non-existent id
+      curl -X POST http://localhost:3001/likes/72wWk3
+      curl -X POST -d '{"content":"x","transactionId":"0H0..."}' -H 'Content-Type: application/json' \
+        http://localhost:3001/comments/0H0...
+      ```
+    expected: '404 Not Found'
+    actual: "500 — TypeError: Cannot destructure property 'senderId' of ... as it is null in updateTransactionById / createLikes / createComments. All three load the transaction, get null, and destructure without an existence check. One defect, three entry points."
+
   - id: BUG-API-FUZZ-008
     title: '500 responses leak backend filesystem path, Prisma internals & source'
     severity: High
     area: Security
     status: open
-    report: docs/bug-reports/api-fuzz-bugs.md
+    endpoint: global error handler
+    tags: [security]
+    steps: 'Trigger any of the 500s above.'
+    expected: 'A generic 500 body with no internal details (stack traces logged server-side only).'
+    actual: 'The HTML error page exposes absolute backend paths (/Users/.../cypress-app/backend/database.ts:103), Prisma query internals, source-line snippets, and node_modules paths.'
+    impact: 'Hands an attacker the server directory layout, ORM, and code structure (information disclosure).'
+    fix: "Production error handler that returns { error: 'Internal Server Error' } and logs detail server-side."
 
   # ── Signin / users ────────────────────────────────────────────────────────
   - id: BUG-001
@@ -71,49 +159,96 @@ bugs:
     severity: High
     area: API
     status: resolved # re-verified 2026-06-16: now returns 422 JSON {errors:[...]}
-    report: docs/bug-reports/signin-bugs.md
+    endpoint: POST /users
+    test_file: tests/api/signup.spec.ts
+    expected: '422 { "errors": [{ "msg": "...", "param": "firstName" }] } when firstName, lastName, username, or password is absent'
+    actual: '500 + raw Prisma/Express HTML stack trace (PrismaClientValidationError)'
+    impact: 'Exposes ORM internals; clients cannot distinguish validation errors from server crashes.'
+    fix: 'Add express-validator checks before the Prisma call in POST /users and return 422 JSON on missing fields.'
+
   - id: BUG-002
     title: 'Duplicate username returns 500 HTML instead of 409 JSON'
     severity: Medium
     area: API
     status: resolved # re-verified 2026-06-16: now returns 409
-    report: docs/bug-reports/signin-bugs.md
+    endpoint: POST /users
+    test_file: tests/api/signup.spec.ts
+    expected: '409 { "error": "Username already taken" }'
+    actual: '500 + raw Prisma/Express HTML stack trace (Prisma P2002 unique-constraint violation)'
+    impact: 'Exposes ORM internals; clients cannot distinguish a conflict from a server crash.'
+    fix: 'Catch Prisma error code P2002 in POST /users and return 409 JSON.'
+
   - id: BUG-003
     title: 'POST /login response exposes bcrypt password hash'
     severity: High
     area: Security
     status: resolved # re-verified 2026-06-16: login response no longer contains password
-    report: docs/bug-reports/signin-bugs.md
+    endpoint: POST /login (200 response)
+    test_file: tests/api/signin.spec.ts
+    expected: 'The user object in the response must NOT contain a password field.'
+    actual: 'user.password contained the full bcrypt hash (e.g. $2a$10$...).'
+    impact: 'OWASP API3 Excessive Data Exposure; hash can be used in offline brute-force attacks.'
+    fix: 'Strip the password field from the user object before serializing the login response.'
+
   - id: BUG-004
     title: 'POST /users response exposes bcrypt password hash'
     severity: High
     area: Security
     status: resolved # re-verified 2026-06-16: signup response no longer contains password
-    report: docs/bug-reports/signin-bugs.md
+    endpoint: POST /users (201 response)
+    test_file: tests/api/signup.spec.ts
+    expected: 'The user object in the response must NOT contain a password field.'
+    actual: 'user.password contained the full bcrypt hash.'
+    impact: 'OWASP API3 Excessive Data Exposure (same as BUG-003).'
+    fix: 'Strip the password field from the user object before serializing the registration response.'
+
   - id: BUG-005
     title: "Sign Up link click doesn't navigate due to Formik DOM re-render"
     severity: Medium
     area: UI
     status: open
-    report: docs/bug-reports/signin-bugs.md
+    endpoint: '"Don''t have an account? Sign Up" link on /signin'
+    test_file: tests/ui/signin.spec.ts
+    expected: 'Clicking the link navigates to /signup.'
+    actual: "URL stays at /signin. Playwright's mouse-move triggers Formik onBlur validation on the Username field, re-rendering and detaching the link's DOM node before the click event fires."
+    impact: 'Navigation from signin to signup is unreliable for automated and potentially real users.'
+    fix: "Debounce Formik's onBlur re-render, or use mousedown instead of click for navigation links so the event fires before re-render."
+
   - id: BUG-006
     title: 'WCAG 2.1 AA violations on signin page (link-name rule)'
     severity: Medium
     area: UI
     status: open
-    report: docs/bug-reports/signin-bugs.md
+    endpoint: /signin page (and shared app chrome — top bar / sidebar)
+    test_file: tests/ui/signin.spec.ts
+    expected: 'All links have a discernible accessible name (axe-core link-name rule passes).'
+    actual: 'axe-core reports link-name violations — icon-only links (logo, top-bar/sidebar icons) have no accessible name.'
+    impact: 'Screen reader users cannot determine the purpose of these links; fails WCAG 2.1 AA SC 4.1.2.'
+    fix: 'Add aria-label attributes to all icon-only links in the shared app layout.'
+
   - id: BUG-007
     title: 'Tab key does not focus Username input as first element'
     severity: Low
     area: UI
     status: open
-    report: docs/bug-reports/signin-bugs.md
+    endpoint: /signin page — keyboard tab order
+    test_file: tests/ui/signin.spec.ts
+    expected: 'Pressing Tab from body focuses the Username input as the first interactive element.'
+    actual: 'Username field does not receive focus on the first Tab keypress; another element captures focus first.'
+    impact: 'Keyboard-only users cannot reach the form efficiently; fails WCAG 2.1 AA SC 2.1.1 and SC 2.4.3.'
+    fix: 'Review tabindex order; ensure the Username input is the first focusable element in the DOM flow.'
+
   - id: BUG-008
     title: 'POST /login with remember=true sends Expires instead of Max-Age'
     severity: Low
     area: API
     status: open
-    report: docs/bug-reports/signin-bugs.md
+    endpoint: 'POST /login (200 response, remember: true)'
+    test_file: tests/api/signin.spec.ts
+    expected: 'Set-Cookie contains Max-Age=2592000 (RFC 6265, 30 days in seconds) when remember: true.'
+    actual: 'Set-Cookie contains Expires=<date 30 days out> (legacy) and NO Max-Age. Session login sends neither.'
+    impact: 'Minor — Expires is legacy; Max-Age is preferred by RFC 6265 (unaffected by client clock skew). Not a security issue.'
+    fix: 'Configure the session middleware to set maxAge (ms) in addition to / instead of expires when remember: true.'
 
   # ── Home ──────────────────────────────────────────────────────────────────
   - id: BUG-HOME-001
@@ -121,13 +256,27 @@ bugs:
     severity: Medium
     area: API
     status: resolved # re-verified 2026-06-16: date-filter params now return 200
-    report: docs/bug-reports/home-bugs.md
+    endpoint: GET /transactions/public?dateStart=...&dateEnd=...
+    test_file: tests/api/home.spec.ts
+    expected: '200 with the public feed filtered to the given date range.'
+    actual: '500 server crash whenever dateStart and/or dateEnd query params are supplied.'
+    impact: 'Date-range filtering of the public feed was completely broken; any client passing these documented params got a server error.'
+    fix: 'Validate/parse dateStart/dateEnd before building the query; coerce to Date and return 422 on malformed input.'
+
   - id: BUG-HOME-A11Y-001
     title: 'Transaction list role="grid" lacks required row children + a11y debt'
     severity: Medium
     area: UI
     status: open
-    report: docs/bug-reports/home-bugs.md
+    endpoint: Home / transaction list (and other feed pages)
+    tags: [a11y]
+    expected: 'axe-core WCAG 2.1 AA scan of the home page reports zero violations.'
+    actual: |-
+      With link-name (BUG-006) fixed, the scan still reports:
+      - aria-required-children (critical): the list uses role="grid" but its <li> items are not role="row", and <hr> dividers are invalid grid children
+      - color-contrast, list / only-listitems semantics, and other WCAG 1.3.1 items
+    impact: 'Screen-reader/grid navigation is inconsistent; remaining AA debt.'
+    fix: 'Drop role="grid" for a plain list, or give each TransactionItem role="row" (+ role="gridcell") and mark dividers role="presentation"; address color-contrast separately.'
 
   # ── Transaction ───────────────────────────────────────────────────────────
   - id: BUG-TXN-UI-001
@@ -135,28 +284,67 @@ bugs:
     severity: Medium
     area: UI
     status: open
-    report: docs/bug-reports/transaction-bugs.md
+    endpoint: UI / Transaction Detail (/transaction/:id)
+    tags: [regression]
+    test_file: tests/ui/transaction.spec.ts
+    steps: |-
+      1. Log in as any user
+      2. Navigate directly to /transaction/nonexistent-id-00000
+    expected: 'App redirects to /dashboard or displays an error ("Transaction not found").'
+    actual: 'SPA stays on the URL with no content and no visible error. The Transaction Detail header never appears.'
+
   - id: BUG-TXN-UI-002
     title: 'Transaction-detail card re-renders into a skeleton state after data paints'
     severity: Low
     area: UI
     status: open
-    report: docs/bug-reports/transaction-bugs.md
+    endpoint: UI / Transaction Detail (/transaction/:id)
+    tags: [visual]
+    test_file: tests/ui/transaction.spec.ts
+    steps: |-
+      1. Open /transaction/Ec6hHyL6SC2F under load (full Playwright suite, 3 workers)
+      2. Observe the card immediately after the sender name first paints
+    expected: 'Once the data has loaded and painted, the card stays rendered.'
+    actual: 'The XState transaction-detail machine re-renders the card into a loading/skeleton state AFTER data first paints — names and avatars briefly drop. Backend GET /transactions/:id is healthy (200, ~10ms); purely client-side render churn (~30% pixel diff in a card screenshot under CPU contention).'
+
   - id: BUG-TXN-API-001
     title: 'GET /transactions/:id returns 200 for non-existent IDs'
     severity: Medium
     area: API
     status: resolved # re-verified 2026-06-16: now returns 404
-    report: docs/bug-reports/transaction-bugs.md
+    endpoint: GET /transactions/:id
+    tags: [regression]
+    test_file: tests/api/transaction.spec.ts
+    steps: |-
+      1. Authenticate via POST /login
+      2. GET /transactions/nonexistent-tx-id-000
+    expected: '404 Not Found'
+    actual: '200 OK with empty/null transaction body'
+    impact: 'Clients cannot distinguish a real transaction with no content from a missing one; silent data-consistency bugs for any status-code consumer.'
+
   - id: BUG-TXN-SEC-001
     title: 'IDOR: private transaction readable by unrelated authenticated user'
     severity: Critical
     area: Security
     status: open
-    report: docs/bug-reports/transaction-bugs.md
+    endpoint: GET /transactions/:id — Authorization
+    tags: [security]
+    test_file: tests/api/transaction.spec.ts
+    steps: |-
+      1. User A creates a private transaction (privacyLevel: "private")
+      2. User B (not sender or receiver) calls GET /transactions/:id with that ID
+      3. User B receives 200 OK with the full transaction object
+    expected: '401 Unauthorized, 403 Forbidden, or 404 Not Found'
+    actual: '200 OK — full transaction data returned to an unauthorized user.'
+    impact: 'Any authenticated user can enumerate and read other users private financial transactions (IDOR — exposes sensitive financial data).'
+
   - id: BUG-TXN-SCHEMA-001
     title: 'transactions.amount stored as DOUBLE PRECISION instead of INTEGER'
     severity: Low
     area: DB
     status: open
-    report: docs/bug-reports/transaction-bugs.md
+    endpoint: DB Schema / transactions table
+    steps: 'SELECT pg_typeof(amount) FROM transactions LIMIT 1 → double precision'
+    expected: 'integer (cents) or numeric(19,4)'
+    actual: 'amount column is declared double precision in PostgreSQL.'
+    impact: 'Float rounding risk on direct DB reads. The API returns amount as an integer (cents), so the JS layer is correct — the mismatch only affects direct DB reads.'

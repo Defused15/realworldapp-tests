@@ -105,8 +105,9 @@ quality ──┬─ security-sca (no app)
   not SAST, for app security. See ADR-0002.
 - **Atomic & isolated.** No explicit timeouts — auto-waits only. Read-only tests
   share `storageState`; mutating tests create their own user/data.
-- **Skip only for app bugs.** A skipped test must point to a documented bug in
-  `docs/bug-reports/`, never a test-side workaround.
+- **Skip only for app bugs.** A skipped test must point to a `BUG-…` entry in the
+  manifest `docs/bug-reports/bugs.yml` (rendered to a GitHub issue), never a
+  test-side workaround. Never assert broken behavior to keep a test green.
 
 ## 7. AI test platform
 

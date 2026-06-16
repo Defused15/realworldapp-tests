@@ -259,7 +259,7 @@ DB connection for `tests/db-integration/` is configured in `vitest.config.ts` an
 
 ## Known App Bugs
 
-Documented in `docs/bug-reports/`. Tests that hit known bugs either assert the current (broken) behavior or are `test.skip`-ped with a structured comment.
+Tracked in the manifest `docs/bug-reports/bugs.yml` (the single source of truth), which the `bug-report-sync` workflow renders into one self-contained GitHub issue per bug. A test never asserts broken behavior to stay green: known, unfixed bugs are `test.skip`-ped with a `BUG-…` reference; everything else asserts the correct behavior. The manifest and the GitHub issues — not the table below — are authoritative (several entries below are now `resolved`).
 
 | ID                 | Endpoint                 | Issue                                                     |
 | ------------------ | ------------------------ | --------------------------------------------------------- |

@@ -151,7 +151,7 @@ Read `.claude/skills/feedback/skill.md` and follow its instructions for `<featur
 
 This produces:
 
-- `docs/bug-reports/<feature>-bugs.md` — formal bug report for every `test.skip`
+- `docs/bug-reports/bugs.yml` — a structured entry for every `test.skip` bug (one self-contained GitHub issue each via the sync workflow; no markdown report files)
 - Updated agent `.md` files — concrete rules added to prevent same errors
 - Updated `CLAUDE.md` — project-specific learnings appended
 
