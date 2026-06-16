@@ -6,7 +6,6 @@ name: Pipeline (gated)
 #   quality
 #    ├─ security-sca           (no app needed — runs now, green)
 #    └─ contract → api → db → ui → performance → zap     (need the app)
-#                                                  └─ report (always)
 #
 # The app-dependent gates are guarded by `vars.APP_IMAGE`: when unset they are
 # skipped and CI stays green on `quality` + `security-sca`. Set it to the GHCR
@@ -144,12 +143,6 @@ jobs:
       # Flaky analytics: surface tests that only passed on retry (informative).
       - run: npm run flaky:summary
         if: always()
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: allure-results-${{ matrix.shard }} # unique per shard
-          path: allure-results/
-          retention-days: 30
 
   performance:
     name: Gate 5 · Performance (k6)
@@ -200,17 +193,17 @@ jobs:
   # tracked as `app-bug` issues) that we don't patch, so a finding must not block.
   # It still runs for visibility and uploads the HTML coverage report.
   schemathesis:
-    name: API fuzz (Schemathesis · non-gating)
+    name: API fuzz (Schemathesis · regression gate)
     needs: api
+    # Regression gate: known app bugs are excluded by operationId in
+    # tests/scripts/schemathesis.sh, so this fails only on a NEW server error.
     if: ${{ vars.APP_IMAGE != '' && github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
-    continue-on-error: true
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-app
       - name: Run Schemathesis
-        continue-on-error: true
         run: npm run test:schemathesis
       - uses: actions/upload-artifact@v7
         if: always()
@@ -223,8 +216,7 @@ jobs:
   # ── Flaky quarantine (non-gating) ──────────────────────────────────────────
   # Known-flaky tests tagged @quarantine are excluded from the gates above so
   # they can't break the build. They still run here for visibility — this job
-  # never blocks the pipeline (continue-on-error) and is not in `report`'s needs.
-  # Push/nightly only; PRs stay fast.
+  # never blocks the pipeline (continue-on-error). Push/nightly only; PRs stay fast.
   quarantine:
     name: Flaky quarantine (non-gating)
     needs: db
@@ -239,61 +231,3 @@ jobs:
         continue-on-error: true
       - run: npm run flaky:summary
         if: always()
-
-  # ── Reporting ──────────────────────────────────────────────────────────────
-  report:
-    name: Allure report
-    needs: [ui, performance, zap]
-    if: ${{ always() && vars.APP_IMAGE != '' }}
-    runs-on: ubuntu-latest
-    # Pages deploy needs these scopes; the github-pages environment exposes the
-    # published URL. PRs only build the artifact (no deploy) to avoid clobbering
-    # the published site.
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with: {node-version: '22', cache: npm}
-      - run: npm ci
-      # Allure CLI needs a JRE; the bundled openjdk:8-jre-alpine image that
-      # simple-elf/allure-report-action@v1.9 used was pulled from Docker Hub,
-      # so we generate the report with the local CLI instead.
-      - uses: actions/setup-java@v5
-        with: {distribution: temurin, java-version: '17'}
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: allure-results-* # merge results from every UI shard
-          path: allure-results
-          merge-multiple: true
-      - run: npx allure generate allure-results --clean -o allure-report
-      # Fold the unit-coverage HTML report into the published site (served at
-      # /coverage alongside the Allure report at the root).
-      - uses: actions/download-artifact@v8
-        with: {name: unit-coverage, path: allure-report/coverage}
-        continue-on-error: true # coverage may be absent on partial runs
-      - name: Report links → job summary
-        if: always()
-        run: |
-          {
-            echo "### 📊 Test report (push to \`${GITHUB_REF_NAME}\`)"
-            echo ""
-            echo "- **Allure report:** https://defused15.github.io/realworldapp-tests/"
-            echo "- **Unit coverage:** https://defused15.github.io/realworldapp-tests/coverage/"
-            echo "- Schemathesis fuzz + per-shard flaky summaries: see the job artifacts above."
-          } >> "$GITHUB_STEP_SUMMARY"
-      # Always keep the report as a downloadable artifact (covers PRs too).
-      - uses: actions/upload-artifact@v7
-        with: {name: allure-report, path: allure-report}
-      # Publish to GitHub Pages on push only → stable URL for the latest report.
-      - uses: actions/upload-pages-artifact@v5
-        if: ${{ github.event_name != 'pull_request' }}
-        with: {path: allure-report}
-      - id: deployment
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: actions/deploy-pages@v5

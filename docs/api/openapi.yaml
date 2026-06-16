@@ -124,6 +124,7 @@ paths:
         '401': {description: Unauthenticated}
     post:
       summary: Register a new user
+      operationId: createUser # excluded from fuzz gate — BUG-API-FUZZ-001 (500 on wrong-typed body)
       security: []
       requestBody:
         required: true
@@ -154,6 +155,7 @@ paths:
         '422': {description: Invalid id}
     patch:
       summary: Update a user
+      operationId: updateUser # excluded from fuzz gate — BUG-API-FUZZ-009 (500 on wrong-typed body; also mutates seed user)
       parameters:
         - {name: userId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$', example: uBmeaz5pX}}
       requestBody:
@@ -181,6 +183,7 @@ paths:
         '401': {description: Unauthenticated}
     post:
       summary: Create a transaction (payment or request)
+      operationId: createTransaction # excluded from fuzz gate — BUG-API-FUZZ-002 (500 on non-existent receiverId)
       requestBody:
         required: true
         content:
@@ -199,6 +202,7 @@ paths:
   /transactions/public:
     get:
       summary: Public transactions feed
+      operationId: getPublicTransactions # excluded from fuzz gate — BUG-API-FUZZ-004 (500 on unknown query param)
       parameters:
         - {name: page, in: query, schema: {type: integer, minimum: 1}}
         - {name: limit, in: query, schema: {type: integer, minimum: 1}}
@@ -222,6 +226,7 @@ paths:
         '422': {description: Invalid id}
     patch:
       summary: Update a transaction request status
+      operationId: updateTransaction # excluded from fuzz gate — BUG-API-FUZZ-007 (500 null-deref on non-existent id)
       parameters:
         - {name: transactionId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}}
       requestBody:
@@ -243,6 +248,7 @@ paths:
         '401': {description: Unauthenticated}
     post:
       summary: Like a transaction
+      operationId: likeTransaction # excluded from fuzz gate — BUG-API-FUZZ-007 (500 null-deref on non-existent id)
       parameters:
         - {name: transactionId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}}
       requestBody:
@@ -262,6 +268,7 @@ paths:
         '401': {description: Unauthenticated}
     post:
       summary: Comment on a transaction
+      operationId: commentTransaction # excluded from fuzz gate — BUG-API-FUZZ-007 (500 null-deref on non-existent id)
       parameters:
         - {name: transactionId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}}
       requestBody:
@@ -281,6 +288,7 @@ paths:
   /notifications/bulk:
     post:
       summary: Create notifications in bulk
+      operationId: createNotificationsBulk # excluded from fuzz gate — BUG-API-FUZZ-003 (500 when items is not an array)
       requestBody:
         required: true
         content:
@@ -348,6 +356,7 @@ paths:
   /contacts/{username}:
     get:
       summary: Contacts for a username
+      operationId: getContactsByUsername # excluded from fuzz gate — BUG-API-FUZZ-005 (500 null-deref on unknown username)
       parameters:
         - {name: username, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_.-]{1,30}$', example: Heath93}}
       responses:
