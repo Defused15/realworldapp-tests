@@ -153,6 +153,25 @@ bugs:
     impact: 'Hands an attacker the server directory layout, ORM, and code structure (information disclosure).'
     fix: "Production error handler that returns { error: 'Internal Server Error' } and logs detail server-side."
 
+  - id: BUG-API-FUZZ-009
+    title: 'PATCH /users/{id} accepts wrong-typed fields → 500 (no input validation)'
+    severity: High
+    area: API
+    status: open # found 2026-06-16 by Schemathesis regression gate (sibling of FUZZ-001 on the update path)
+    endpoint: PATCH /users/{userId}
+    tags: [security, contract]
+    steps: |-
+      Authenticated as the owner, PATCH your own user with a type-violating body:
+
+      ```bash
+      curl -X PATCH -H 'Content-Type: application/json' -H 'Cookie: connect.sid=...' \
+        -d '{"balance": "not-a-number"}' http://localhost:3001/users/uBmeaz5pX
+      ```
+    expected: '422 Validation error (typed/validated request body)'
+    actual: '500 — PrismaClientValidationError: Invalid prisma.user.updateMany() invocation; the bad value reaches Prisma unvalidated.'
+    impact: 'Same input-validation gap as FUZZ-001 but on the update path. Worse: the endpoint also writes arbitrary unvalidated fields (incl. password) to the row — a fuzz run flipped the seed user password and locked out s3cret until a re-seed.'
+    fix: 'Add request-body validation (express-validator) before the Prisma updateMany call in PATCH /users/{userId}; whitelist updatable fields and return 422 on type violations.'
+
   # ── Signin / users ────────────────────────────────────────────────────────
   - id: BUG-001
     title: 'Missing required fields return 500 HTML instead of 422 JSON'
