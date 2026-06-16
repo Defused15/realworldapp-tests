@@ -21,21 +21,15 @@ jobs:
     name: Full suite (incl. @visual + @a11y)
     if: ${{ vars.APP_IMAGE != '' }}
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: rwa_dev
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd pg_isready --health-interval 10s
-          --health-timeout 5s --health-retries 5
+    # No GitHub `services: postgres` here — setup-app boots the app AND its
+    # postgres (rwa_test on host 5433) via app.ci.yml. The DB env below must
+    # point at THAT database (same as pipeline.yml's `db` gate), otherwise the
+    # db-integration tests query an empty DB and fail with "relation ... does
+    # not exist".
     env:
       DB_HOST: localhost
-      DB_PORT: '5432'
-      DB_NAME: rwa_dev
+      DB_PORT: '5433'
+      DB_NAME: rwa_test
       DB_USER: postgres
       DB_PASSWORD: postgres
       CROSS_BROWSER: '1' # also run Firefox + WebKit UI projects
@@ -51,14 +45,14 @@ jobs:
     name: Performance (stress + spike)
     if: ${{ vars.APP_IMAGE != '' }}
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env: {POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: rwa_dev}
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd pg_isready --health-interval 10s
-          --health-timeout 5s --health-retries 5
+    # Non-gating: stress/spike profiles saturate the single-instance demo app on a
+    # 2-core runner (connection drops + p95 in seconds). That measures runner
+    # capacity, not a regression we control — so it runs for visibility only and
+    # never fails the nightly. Real perf SLOs are gated by perf:all:smoke in
+    # pipeline.yml (Gate 5). See docs/bug-reports for the observed ceiling.
+    continue-on-error: true
+    # No postgres service: k6 hits the running app over HTTP; the app's own DB is
+    # booted by setup-app. (A bare empty service DB here was unused and misleading.)
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-app

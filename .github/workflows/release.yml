@@ -27,7 +27,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false # semantic-release authenticates via GITHUB_TOKEN
       - uses: actions/setup-node@v4
-        with: {node-version: '20', cache: npm}
+        with: {node-version: '24', cache: npm} # semantic-release needs Node >=24.10 (or ^22.14)
       - run: npm ci
       - run: npx semantic-release
         env:

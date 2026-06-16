@@ -31,8 +31,12 @@ fi
 
 # --network host so the container reaches the app on the CI runner's localhost.
 # (Locally on macOS use API_URL=http://host.docker.internal:3001 instead.)
+# The HTML coverage report lands in ./schemathesis-out on the host (writable
+# working-dir mount) so CI can upload it as an artifact.
+mkdir -p "$PWD/schemathesis-out" && chmod 777 "$PWD/schemathesis-out"
 docker run --rm --network host \
   -v "$PWD/docs/api:/spec:ro" \
+  -v "$PWD/schemathesis-out:/wrk" -w /wrk \
   schemathesis/schemathesis:stable run /spec/openapi.yaml \
   --url "$API" \
   -H "Cookie: $COOKIE" \

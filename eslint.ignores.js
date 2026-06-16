@@ -8,4 +8,6 @@ module.exports = [
   // Node tooling configs (CommonJS globals) not covered by the TS project.
   'lighthouserc.js',
   'stryker.config.mjs',
+  // Node CLI scripts (ESM, run by CI workflows — not part of the TS test project).
+  'tests/scripts/*.mjs',
 ];

@@ -16,6 +16,7 @@ node_modules/
 /allure-results/
 /allure-report/
 /reports/
+/schemathesis-out/
 /lighthouse-report/
 /.lighthouseci/
 gitleaks-report.json

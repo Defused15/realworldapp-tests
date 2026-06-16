@@ -39,6 +39,12 @@ jobs:
       - run: npm run compile # tsc --noEmit equivalent (build)
       - run: npm run lint
       - run: npm run test:unit:coverage # unit tests + coverage gate (no app needed)
+      - name: Coverage summary → job summary
+        if: always()
+        run: node tests/scripts/coverage-summary.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: unit-coverage, path: reports/coverage, retention-days: 30}
 
   security-sca:
     name: Security · SCA + secrets (no app)
@@ -187,6 +193,33 @@ jobs:
           path: zap-out/report.*
           retention-days: 30
 
+  # ── API property/fuzz testing (non-gating) ─────────────────────────────────
+  # Schemathesis fuzzes every operation in docs/api/openapi.yaml against the live
+  # app (not_a_server_error: no 5xx). It is NON-GATING: the app under test has
+  # known unhandled-500 defects (docs/bug-reports/api-fuzz-bugs.md, tracked as
+  # `app-bug` issues) that we don't patch, so a finding must not block the build.
+  # It still runs for visibility and uploads the HTML coverage report.
+  schemathesis:
+    name: API fuzz (Schemathesis · non-gating)
+    needs: api
+    if: ${{ vars.APP_IMAGE != '' && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-app
+      - name: Run Schemathesis
+        continue-on-error: true
+        run: npm run test:schemathesis
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: schemathesis-report
+          path: schemathesis-out/schema-coverage.html
+          retention-days: 30
+          if-no-files-found: ignore
+
   # ── Flaky quarantine (non-gating) ──────────────────────────────────────────
   # Known-flaky tests tagged @quarantine are excluded from the gates above so
   # they can't break the build. They still run here for visibility — this job
@@ -239,6 +272,21 @@ jobs:
           path: allure-results
           merge-multiple: true
       - run: npx allure generate allure-results --clean -o allure-report
+      # Fold the unit-coverage HTML report into the published site (served at
+      # /coverage alongside the Allure report at the root).
+      - uses: actions/download-artifact@v4
+        with: {name: unit-coverage, path: allure-report/coverage}
+        continue-on-error: true # coverage may be absent on partial runs
+      - name: Report links → job summary
+        if: always()
+        run: |
+          {
+            echo "### 📊 Test report (push to \`${GITHUB_REF_NAME}\`)"
+            echo ""
+            echo "- **Allure report:** https://defused15.github.io/realworldapp-tests/"
+            echo "- **Unit coverage:** https://defused15.github.io/realworldapp-tests/coverage/"
+            echo "- Schemathesis fuzz + per-shard flaky summaries: see the job artifacts above."
+          } >> "$GITHUB_STEP_SUMMARY"
       # Always keep the report as a downloadable artifact (covers PRs too).
       - uses: actions/upload-artifact@v4
         with: {name: allure-report, path: allure-report}
