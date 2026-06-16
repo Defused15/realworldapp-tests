@@ -76,5 +76,15 @@ export default defineConfig({
         baseURL: process.env.API_URL ?? 'http://localhost:3001',
       },
     },
+    {
+      // Read-only synthetic smoke for the shared Railway staging env. Isolated
+      // in its own project so it never runs in the ui/api gates. No storageState
+      // — the @staging specs log in via their own request context.
+      name: 'staging',
+      testMatch: 'tests/staging/**/*.spec.ts',
+      use: {
+        baseURL: process.env.API_URL ?? 'http://localhost:3001',
+      },
+    },
   ],
 });

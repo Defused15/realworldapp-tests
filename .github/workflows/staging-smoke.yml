@@ -1,0 +1,50 @@
+name: Staging smoke (Railway)
+
+# Synthetic monitoring for the shared Railway staging environment.
+# STRICTLY READ-ONLY (@staging project): login + read checks only — never seeds,
+# mutates, or deletes data, so it is safe to run against the live shared env.
+# .env.staging is gitignored, so CI gets the target from the env: block below.
+# The Railway domain is public (not a secret) and the seed creds are the demo
+# defaults; override via repo vars/secrets if that ever changes.
+#
+# Not a per-PR code gate: it verifies staging is alive and serving correctly,
+# not the PR's diff. Runs on a schedule + on demand.
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # every 6 hours
+  workflow_dispatch: {}
+
+concurrency:
+  group: staging-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Read-only smoke vs Railway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NODE_ENV: staging
+      BASE_URL: ${{ vars.STAGING_BASE_URL || 'https://rwa-app-production-9842.up.railway.app' }}
+      API_URL: ${{ vars.STAGING_API_URL || 'https://rwa-app-production-9842.up.railway.app' }}
+      TEST_USER_USERNAME: ${{ vars.STAGING_TEST_USER || 'Heath93' }}
+      TEST_USER_PASSWORD: ${{ secrets.STAGING_TEST_PASSWORD || 's3cret' }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # global-setup logs in through the UI, so it needs a browser.
+      - run: npx playwright install --with-deps chromium
+      - name: Run @staging read-only smoke
+        run: npm run test:staging:smoke
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: staging-smoke-report
+          path: playwright-report
+          retention-days: 14
+          if-no-files-found: ignore
