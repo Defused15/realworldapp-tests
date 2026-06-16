@@ -3,10 +3,31 @@
 import {test, expect} from '../fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import xssPayloads from '../data/xss-payloads.json';
+import {createTransaction, loginAs} from '../helpers/api-helpers';
+import type {PlaywrightWorkerArgs} from '@playwright/test';
 
 const SEED_TX_ID = 'Ec6hHyL6SC2F';
 const SEED_USER_ID = 'uBmeaz5pX';
+// A second seed user to receive freshly-created transactions (not Heath93).
+const RECEIVER_ID = 'GjWovtg2hr';
 const API = process.env.API_URL ?? 'http://localhost:3001';
+const CREDS = {
+  username: process.env.TEST_USER_USERNAME ?? 'Heath93',
+  password: process.env.TEST_USER_PASSWORD ?? 's3cret',
+};
+
+// Create a fresh, isolated transaction (0 likes/comments) via a dedicated
+// API-base context. apiClient's baseURL is the UI origin (:3000), so relative
+// helper paths must go through a context pointing at the API (:3001).
+async function makeFreshTransaction(
+  playwright: PlaywrightWorkerArgs['playwright'],
+): Promise<{id: string}> {
+  const api = await playwright.request.newContext({baseURL: API});
+  await loginAs(api, CREDS);
+  const tx = await createTransaction(api, RECEIVER_ID);
+  await api.dispose();
+  return tx;
+}
 
 test.describe('Transaction Detail', () => {
   // ─── Transaction Card ────────────────────────────────────────────────────────
@@ -106,10 +127,6 @@ test.describe('Transaction Detail', () => {
         transactionPage,
         page,
       }) => {
-        test.skip(
-          true,
-          'BUG-TXN-UI-001: navigating to /transaction/nonexistent-id-00000 leaves the SPA on that URL with no error state and no header — app should redirect to /dashboard or show an error message',
-        );
         await page.goto('/transaction/nonexistent-id-00000');
         const isOnDetailPage = await transactionPage.transactionDetailHeader
           .isVisible()
@@ -181,41 +198,23 @@ test.describe('Transaction Detail', () => {
 
       test('like button is ENABLED for a fresh transaction with 0 likes @smoke', async ({
         transactionPage,
-        apiClient,
+        playwright,
       }) => {
-        const listRes = await apiClient.get(
-          `${API}/transactions/public?page=1&limit=20`,
-        );
-        const {results} = await listRes.json();
-        const freshTx = (results as {id: string; likes: unknown[]}[]).find(
-          tx => tx.likes.length === 0,
-        );
-        if (!freshTx) {
-          test.skip();
-          return;
-        }
+        // Create our own transaction so it is guaranteed to have 0 likes and is
+        // isolated from other tests (the shared public feed is not reliable).
+        const freshTx = await makeFreshTransaction(playwright);
         await transactionPage.navigate(freshTx.id);
         const likeBtn = transactionPage.getLikeButton(freshTx.id);
         await expect(likeBtn).toBeVisible();
         await expect(likeBtn).toBeEnabled();
       });
 
-      test('like button click is skipped due to BUG-TXN-001 @smoke', async ({
+      test('like button click increments the like count @smoke', async ({
         transactionPage,
-        apiClient,
+        playwright,
       }) => {
-        test.skip(
-          true,
-          'BUG-TXN-001: Like button calls POST /transactions/{id}/like → 404, correct endpoint is POST /likes/{txId}',
-        );
-        const listRes = await apiClient.get(
-          `${API}/transactions/public?page=1&limit=20`,
-        );
-        const {results} = await listRes.json();
-        const freshTx = (results as {id: string; likes: unknown[]}[]).find(
-          tx => tx.likes.length === 0,
-        );
-        if (!freshTx) return;
+        // Fresh, isolated transaction (0 likes) instead of scavenging the feed.
+        const freshTx = await makeFreshTransaction(playwright);
         await transactionPage.navigate(freshTx.id);
         const countBefore = await transactionPage.getLikeCountText(freshTx.id);
         await transactionPage.likeTransaction(freshTx.id);
@@ -226,23 +225,13 @@ test.describe('Transaction Detail', () => {
 
     // ─── Edge Cases ─────────────────────────────────────────────────────────────
     test.describe('Edge Cases', () => {
-      test('like count persists after page reload is skipped due to BUG-TXN-001 @regression', async ({
+      test('like count persists after page reload @regression', async ({
         transactionPage,
-        apiClient,
+        playwright,
         page,
       }) => {
-        test.skip(
-          true,
-          'BUG-TXN-001: Like button calls POST /transactions/{id}/like → 404, correct endpoint is POST /likes/{txId}',
-        );
-        const listRes = await apiClient.get(
-          `${API}/transactions/public?page=1&limit=20`,
-        );
-        const {results} = await listRes.json();
-        const freshTx = (results as {id: string; likes: unknown[]}[]).find(
-          tx => tx.likes.length === 0,
-        );
-        if (!freshTx) return;
+        // Fresh, isolated transaction (0 likes) instead of scavenging the feed.
+        const freshTx = await makeFreshTransaction(playwright);
         await transactionPage.navigate(freshTx.id);
         await transactionPage.likeTransaction(freshTx.id);
         await page.reload();
@@ -257,20 +246,10 @@ test.describe('Transaction Detail', () => {
 
       test('like button is disabled after clicking — cannot double-like @regression', async ({
         transactionPage,
-        apiClient,
+        playwright,
       }) => {
-        test.skip(
-          true,
-          'BUG-TXN-001: Like button calls POST /transactions/{id}/like → 404, correct endpoint is POST /likes/{txId}',
-        );
-        const listRes = await apiClient.get(
-          `${API}/transactions/public?page=1&limit=20`,
-        );
-        const {results} = await listRes.json();
-        const freshTx = (results as {id: string; likes: unknown[]}[]).find(
-          tx => tx.likes.length === 0,
-        );
-        if (!freshTx) return;
+        // Fresh, isolated transaction (0 likes) instead of scavenging the feed.
+        const freshTx = await makeFreshTransaction(playwright);
         await transactionPage.navigate(freshTx.id);
         await transactionPage.likeTransaction(freshTx.id);
         await expect(transactionPage.getLikeButton(freshTx.id)).toBeDisabled();
@@ -316,10 +295,6 @@ test.describe('Transaction Detail', () => {
         transactionPage,
         apiClient,
       }) => {
-        test.skip(
-          true,
-          'BUG-TXN-002: Comment input Enter key does not trigger XState transactionComment event — no network request fired',
-        );
         const listRes = await apiClient.get(
           `${API}/transactions/public?page=1&limit=20`,
         );
@@ -342,10 +317,6 @@ test.describe('Transaction Detail', () => {
       test('comment input clears after Enter (BUG-TXN-002 blocks persistence) @regression', async ({
         transactionPage,
       }) => {
-        test.skip(
-          true,
-          'BUG-TXN-002: Comment input Enter key does not trigger XState transactionComment event — no network request fired',
-        );
         await transactionPage.navigate(SEED_TX_ID);
         const input = transactionPage.getCommentInput(SEED_TX_ID);
         await input.fill('test comment');
@@ -366,10 +337,6 @@ test.describe('Transaction Detail', () => {
       test('whitespace-only comment does not submit @regression', async ({
         transactionPage,
       }) => {
-        test.skip(
-          true,
-          'BUG-TXN-002: Comment input Enter key does not trigger XState transactionComment event — no network request fired',
-        );
         await transactionPage.navigate(SEED_TX_ID);
         const input = transactionPage.getCommentInput(SEED_TX_ID);
         await input.fill('   ');
@@ -459,20 +426,11 @@ test.describe('Transaction Detail', () => {
 
       test('comments list is absent when transaction has no comments @smoke', async ({
         transactionPage,
-        apiClient,
+        playwright,
       }) => {
-        const listRes = await apiClient.get(
-          `${API}/transactions/public?page=1&limit=20`,
-        );
-        const {results} = await listRes.json();
-        const noCommentTx = (
-          results as {id: string; comments: unknown[]}[]
-        ).find(tx => tx.comments.length === 0);
-        if (!noCommentTx) {
-          test.skip();
-          return;
-        }
-        await transactionPage.navigate(noCommentTx.id);
+        // A freshly created transaction has no comments — isolated and reliable.
+        const freshTx = await makeFreshTransaction(playwright);
+        await transactionPage.navigate(freshTx.id);
         await expect(transactionPage.commentsList).toBeHidden();
       });
     });
@@ -515,32 +473,38 @@ test.describe('Transaction Detail', () => {
   });
 
   // ─── Visual ──────────────────────────────────────────────────────────────────
-  test.describe('Visual', () => {
-    // Visual baselines are created on first run. Commit __snapshots__/ to git.
-    // To update: npx playwright test --update-snapshots --grep @visual
-
-    // BUG-TXN-UI-002 (app-side, not stabilizable from test): the transaction-detail
-    // XState machine re-renders the card into a loading/skeleton state *after* the
-    // data first paints. `getSender(...).toHaveText('Darrel Ortiz')` passes, then
-    // the re-render drops the names/avatars from paint; under the full suite's
-    // 3-worker CPU contention that skeleton frame lands on the screenshot,
-    // producing a deterministic ~30% pixel diff. The backend GET /transactions/{id}
-    // is healthy (200, ~10ms) even under concurrent load, so this is purely the
-    // SPA's render behavior — a pixel snapshot here is not a reliable target.
-    // The card's content (sender, receiver, amount, avatars-present) is fully
-    // covered by the @smoke tests in the Transaction Card > Happy Path describe.
-    test.skip('transaction detail card matches snapshot @visual', async ({
+  test.describe('Render Stability', () => {
+    // Replaces the former BUG-TXN-UI-002 pixel snapshot. A cross-platform pixel
+    // baseline (macOS dev vs Linux CI) is unreliable, and the old card briefly
+    // re-rendered into a skeleton after first paint. Instead of a screenshot,
+    // assert the card's key content paints and STAYS painted — the real concern
+    // — which is robust everywhere and still guards against a skeleton regression.
+    test('transaction detail card renders stable content @regression', async ({
       transactionPage,
+      apiClient,
     }) => {
+      const res = await apiClient.get(`${API}/transactions/${SEED_TX_ID}`);
+      const {transaction} = await res.json();
       await transactionPage.navigate(SEED_TX_ID);
-      await expect(transactionPage.getSender(SEED_TX_ID)).toHaveText(
-        'Darrel Ortiz',
+
+      const card = transactionPage.getTransactionItem(SEED_TX_ID);
+      await expect(card).toBeVisible();
+      await expect(transactionPage.getSender(SEED_TX_ID)).toContainText(
+        transaction.senderName,
       );
-      await expect(
-        transactionPage.getTransactionItem(SEED_TX_ID),
-      ).toHaveScreenshot('transaction-detail-card.png', {
-        maxDiffPixels: 100,
-      });
+      await expect(transactionPage.getReceiver(SEED_TX_ID)).toContainText(
+        transaction.receiverName,
+      );
+      await expect(transactionPage.getAmount(SEED_TX_ID)).toBeVisible();
+
+      // After the detail header has settled, the content must still be painted
+      // (no skeleton regression).
+      await expect(transactionPage.transactionDetailHeader).toHaveText(
+        'Transaction Detail',
+      );
+      await expect(transactionPage.getSender(SEED_TX_ID)).toContainText(
+        transaction.senderName,
+      );
     });
   });
 });

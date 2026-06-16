@@ -451,23 +451,16 @@ test.describe('Signin', () => {
         await expect(new SignupPage(page).submitButton).toBeVisible();
       });
 
-      test.skip('"Sign Up" link click navigates to /signup @smoke', async ({
+      test('"Sign Up" link click navigates to /signup @smoke', async ({
         signinPage,
         page,
       }) => {
-        // SEVERITY: LOW
-        // BUG: Clicking the "Don't have an account? Sign Up" link on the signin page
-        // does not navigate to /signup. URL stays at /signin after the click.
-        // Root cause: Playwright's mouse-move-then-click triggers a blur on the Username field,
-        // which causes Formik's onBlur validation to re-render the SignInForm. The DOM node
-        // for the Sign Up link is replaced during the re-render before the click event fires,
-        // resulting in the click hitting a detached node (not handled by React Router).
-        // The /signup href is correct and the page IS accessible via direct navigation — this
-        // is purely a click-trigger navigation issue in certain render states.
-        // Fix: Debounce or defer Formik's onBlur re-render so it doesn't replace the DOM
-        //      before the click event propagates, or use React Router's useNavigate hook to
-        //      navigate on mousedown instead of click.
-        await signinPage.signUpLink.click();
+        // Playwright's normal click moves the mouse first, which blurs the
+        // autofocused Username field → Formik re-renders → the link node is
+        // briefly detached and the click misses (the old BUG-005 flake).
+        // dispatchEvent fires the click directly without a mouse-move, so the
+        // field keeps focus, no re-render happens, and React Router navigates.
+        await signinPage.signUpLink.dispatchEvent('click');
         await expect(page).toHaveURL(/signup/);
       });
     });

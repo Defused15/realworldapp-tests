@@ -156,11 +156,7 @@ test.describe('Home', () => {
         const res1 = await apiClient.get(
           `${API}/transactions/public?page=1&limit=10`,
         );
-        const {results: p1, pageData} = await res1.json();
-        if (!pageData.hasNextPages) {
-          test.skip();
-          return;
-        }
+        const {results: p1} = await res1.json();
         const p1Ids = p1.map((t: {id: string}) => t.id);
 
         const res2 = await apiClient.get(
