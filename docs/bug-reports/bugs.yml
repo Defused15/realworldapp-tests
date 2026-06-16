@@ -1,0 +1,162 @@
+# Bug manifest — single source of truth for the GitHub issue sync workflow
+# (.github/workflows/bug-report-sync.yml).
+#
+# Each entry maps a documented app defect to a GitHub issue:
+#   - status: open      → workflow ensures an OPEN issue exists (creates if missing)
+#   - status: resolved  → workflow CLOSES the matching issue with a comment
+#
+# Issues are matched idempotently by the `[<id>]` prefix in the issue title and the
+# `app-bug` label, so re-runs never create duplicates. The human-readable detail
+# lives in the linked `report` markdown file.
+#
+# These are defects in the application under test (cypress-realworld-app), tracked
+# in THIS repo (the QA system of record). We do not patch the app — black-box suite.
+
+labels: [app-bug]
+
+bugs:
+  # ── API fuzz findings (Schemathesis) ──────────────────────────────────────
+  - id: BUG-API-FUZZ-001
+    title: 'POST /users accepts wrong-typed fields → 500 (no input validation)'
+    severity: High
+    area: API
+    status: open
+    report: docs/bug-reports/api-fuzz-bugs.md
+  - id: BUG-API-FUZZ-002
+    title: 'POST /transactions with non-existent receiverId → 500 (FK violation)'
+    severity: High
+    area: API
+    status: open
+    report: docs/bug-reports/api-fuzz-bugs.md
+  - id: BUG-API-FUZZ-003
+    title: 'POST /notifications/bulk with non-array items → 500 (not iterable)'
+    severity: Medium
+    area: API
+    status: open
+    report: docs/bug-reports/api-fuzz-bugs.md
+  - id: BUG-API-FUZZ-004
+    title: 'GET /transactions/public with unknown query param → 500'
+    severity: Medium
+    area: API
+    status: open
+    report: docs/bug-reports/api-fuzz-bugs.md
+  - id: BUG-API-FUZZ-005
+    title: 'GET /contacts/{username} for unknown username → 500'
+    severity: Medium
+    area: API
+    status: open
+    report: docs/bug-reports/api-fuzz-bugs.md
+  - id: BUG-API-FUZZ-006
+    title: 'PATCH /users/{userId} to a taken username → 500 (should be 409)'
+    severity: Medium
+    area: API
+    status: open
+    report: docs/bug-reports/api-fuzz-bugs.md
+  - id: BUG-API-FUZZ-007
+    title: 'Write ops on a non-existent transactionId → 500 (null dereference)'
+    severity: High
+    area: API
+    status: open
+    report: docs/bug-reports/api-fuzz-bugs.md
+  - id: BUG-API-FUZZ-008
+    title: '500 responses leak backend filesystem path, Prisma internals & source'
+    severity: High
+    area: Security
+    status: open
+    report: docs/bug-reports/api-fuzz-bugs.md
+
+  # ── Signin / users ────────────────────────────────────────────────────────
+  - id: BUG-001
+    title: 'Missing required fields return 500 HTML instead of 422 JSON'
+    severity: High
+    area: API
+    status: open
+    report: docs/bug-reports/signin-bugs.md
+  - id: BUG-002
+    title: 'Duplicate username returns 500 HTML instead of 409 JSON'
+    severity: Medium
+    area: API
+    status: open
+    report: docs/bug-reports/signin-bugs.md
+  - id: BUG-003
+    title: 'POST /login response exposes bcrypt password hash'
+    severity: High
+    area: Security
+    status: open
+    report: docs/bug-reports/signin-bugs.md
+  - id: BUG-004
+    title: 'POST /users response exposes bcrypt password hash'
+    severity: High
+    area: Security
+    status: open
+    report: docs/bug-reports/signin-bugs.md
+  - id: BUG-005
+    title: "Sign Up link click doesn't navigate due to Formik DOM re-render"
+    severity: Medium
+    area: UI
+    status: open
+    report: docs/bug-reports/signin-bugs.md
+  - id: BUG-006
+    title: 'WCAG 2.1 AA violations on signin page (link-name rule)'
+    severity: Medium
+    area: UI
+    status: open
+    report: docs/bug-reports/signin-bugs.md
+  - id: BUG-007
+    title: 'Tab key does not focus Username input as first element'
+    severity: Low
+    area: UI
+    status: open
+    report: docs/bug-reports/signin-bugs.md
+  - id: BUG-008
+    title: 'POST /login with remember=true sends Expires instead of Max-Age'
+    severity: Low
+    area: API
+    status: open
+    report: docs/bug-reports/signin-bugs.md
+
+  # ── Home ──────────────────────────────────────────────────────────────────
+  - id: BUG-HOME-001
+    title: 'Date filter params crash GET /transactions/public with 500'
+    severity: Medium
+    area: API
+    status: open
+    report: docs/bug-reports/home-bugs.md
+  - id: BUG-HOME-A11Y-001
+    title: 'Transaction list role="grid" lacks required row children + a11y debt'
+    severity: Medium
+    area: UI
+    status: open
+    report: docs/bug-reports/home-bugs.md
+
+  # ── Transaction ───────────────────────────────────────────────────────────
+  - id: BUG-TXN-UI-001
+    title: 'Unknown transaction ID: no error state or redirect'
+    severity: Medium
+    area: UI
+    status: open
+    report: docs/bug-reports/transaction-bugs.md
+  - id: BUG-TXN-UI-002
+    title: 'Transaction-detail card re-renders into a skeleton state after data paints'
+    severity: Low
+    area: UI
+    status: open
+    report: docs/bug-reports/transaction-bugs.md
+  - id: BUG-TXN-API-001
+    title: 'GET /transactions/:id returns 200 for non-existent IDs'
+    severity: Medium
+    area: API
+    status: open
+    report: docs/bug-reports/transaction-bugs.md
+  - id: BUG-TXN-SEC-001
+    title: 'IDOR: private transaction readable by unrelated authenticated user'
+    severity: Critical
+    area: Security
+    status: open
+    report: docs/bug-reports/transaction-bugs.md
+  - id: BUG-TXN-SCHEMA-001
+    title: 'transactions.amount stored as DOUBLE PRECISION instead of INTEGER'
+    severity: Low
+    area: DB
+    status: open
+    report: docs/bug-reports/transaction-bugs.md

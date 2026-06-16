@@ -18,6 +18,11 @@ components:
       in: cookie
       name: connect.sid
   schemas:
+    # NOTE: RWA resource ids are short nanoid-style tokens ([A-Za-z0-9_-]); path
+    # params below carry `pattern: '^[A-Za-z0-9_-]{1,40}$'` so Schemathesis
+    # generates well-formed ids instead of arbitrary unicode that the API
+    # 404/422s — that arbitrary data tripped the "too many examples filtered
+    # out" health check and produced no useful fuzz signal.
     LoginRequest:
       type: object
       required: [username, password]
@@ -142,7 +147,7 @@ paths:
     get:
       summary: Get a user by id (self only)
       parameters:
-        - {name: userId, in: path, required: true, schema: {type: string}}
+        - {name: userId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$', example: uBmeaz5pX}}
       responses:
         '200': {description: User}
         '401': {description: Unauthenticated or not the owner}
@@ -150,7 +155,7 @@ paths:
     patch:
       summary: Update a user
       parameters:
-        - {name: userId, in: path, required: true, schema: {type: string}}
+        - {name: userId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$', example: uBmeaz5pX}}
       requestBody:
         required: true
         content:
@@ -165,7 +170,7 @@ paths:
       summary: Public profile (firstName, lastName, avatar)
       security: []
       parameters:
-        - {name: username, in: path, required: true, schema: {type: string}}
+        - {name: username, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_.-]{1,30}$', example: Heath93}}
       responses:
         '200': {description: Profile}
   /transactions:
@@ -208,7 +213,7 @@ paths:
     get:
       summary: Get a transaction by id
       parameters:
-        - {name: transactionId, in: path, required: true, schema: {type: string}}
+        - {name: transactionId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}}
       responses:
         '200': {description: Transaction}
         '401': {description: Unauthenticated}
@@ -218,7 +223,7 @@ paths:
     patch:
       summary: Update a transaction request status
       parameters:
-        - {name: transactionId, in: path, required: true, schema: {type: string}}
+        - {name: transactionId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}}
       requestBody:
         required: true
         content:
@@ -232,14 +237,14 @@ paths:
     get:
       summary: Likes for a transaction
       parameters:
-        - {name: transactionId, in: path, required: true, schema: {type: string}}
+        - {name: transactionId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}}
       responses:
         '200': {description: Likes}
         '401': {description: Unauthenticated}
     post:
       summary: Like a transaction
       parameters:
-        - {name: transactionId, in: path, required: true, schema: {type: string}}
+        - {name: transactionId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}}
       requestBody:
         content:
           application/json:
@@ -251,14 +256,14 @@ paths:
     get:
       summary: Comments for a transaction
       parameters:
-        - {name: transactionId, in: path, required: true, schema: {type: string}}
+        - {name: transactionId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}}
       responses:
         '200': {description: Comments}
         '401': {description: Unauthenticated}
     post:
       summary: Comment on a transaction
       parameters:
-        - {name: transactionId, in: path, required: true, schema: {type: string}}
+        - {name: transactionId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}}
       requestBody:
         required: true
         content:
@@ -293,7 +298,7 @@ paths:
     patch:
       summary: Mark a notification read/unread
       parameters:
-        - {name: notificationId, in: path, required: true, schema: {type: string}}
+        - {name: notificationId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}}
       requestBody:
         required: true
         content:
@@ -323,14 +328,14 @@ paths:
     get:
       summary: Get a bank account
       parameters:
-        - {name: bankAccountId, in: path, required: true, schema: {type: string}}
+        - {name: bankAccountId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}}
       responses:
         '200': {description: Bank account}
         '401': {description: Unauthenticated}
     delete:
       summary: Soft-delete a bank account
       parameters:
-        - {name: bankAccountId, in: path, required: true, schema: {type: string}}
+        - {name: bankAccountId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}}
       responses:
         '200': {description: Deleted}
         '401': {description: Unauthenticated}
@@ -344,6 +349,6 @@ paths:
     get:
       summary: Contacts for a username
       parameters:
-        - {name: username, in: path, required: true, schema: {type: string}}
+        - {name: username, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_.-]{1,30}$', example: Heath93}}
       responses:
         '200': {description: Contacts}
