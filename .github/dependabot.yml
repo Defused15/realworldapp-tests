@@ -1,19 +1,24 @@
 # .github/dependabot.yml
-# Keep dependencies and CI actions up to date (SCA hygiene). Weekly, grouped to
-# reduce noise.
+# Keep dependencies and CI actions up to date (SCA hygiene). Monthly and fully
+# grouped so each ecosystem opens at most ONE PR per cycle instead of one PR per
+# dependency (avoids PR noise).
 
 version: 2
 updates:
   - package-ecosystem: npm
     directory: '/'
-    schedule: {interval: weekly}
+    schedule: {interval: monthly}
     open-pull-requests-limit: 5
     groups:
-      dev-dependencies:
+      npm-dependencies:
         patterns: ['*']
     labels: ['dependencies']
 
   - package-ecosystem: github-actions
     directory: '/'
-    schedule: {interval: weekly}
+    schedule: {interval: monthly}
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ['*']
     labels: ['ci', 'dependencies']
