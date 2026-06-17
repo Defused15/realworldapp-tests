@@ -29,6 +29,17 @@ The app exposes `localhost:3000` (UI) and `localhost:3001` (API).
 3. /start-testing <feature> on <url>      ← gen + run + debug loop + commit
 ```
 
+## Git conventions — ALWAYS follow
+
+**[`CONTRIBUTING.md`](CONTRIBUTING.md) is the binding standard for every branch,
+commit, and PR** — it is not optional (`semantic-release` parses commits on
+`master`). Quick reference:
+
+- **Branch:** `type/short-kebab-desc` (e.g. `test/bank-accounts`, `fix/signin-flake`). Never commit to `master`.
+- **Commit & PR title:** Conventional Commits — `type(scope): subject` (imperative, lowercase, no trailing period). Types: `feat|fix|perf|docs|test|refactor|ci|chore|style`.
+- **Merge:** squash → the PR title becomes the commit `semantic-release` reads, so it MUST be a valid Conventional Commit.
+- Prefer the `/commit` skill to author messages; end AI-assisted commits with the `Co-Authored-By` trailer.
+
 ## Project structure
 
 ```
