@@ -172,6 +172,28 @@ bugs:
     impact: 'Same input-validation gap as FUZZ-001 but on the update path. Worse: the endpoint also writes arbitrary unvalidated fields (incl. password) to the row — a fuzz run flipped the seed user password and locked out s3cret until a re-seed.'
     fix: 'Add request-body validation (express-validator) before the Prisma updateMany call in PATCH /users/{userId}; whitelist updatable fields and return 422 on type violations.'
 
+  - id: BUG-API-FUZZ-010
+    title: 'POST /bankAccounts accepts malformed fields → 500 (no input validation)'
+    severity: High
+    area: API
+    status: open # found 2026-06-16 by Schemathesis regression gate (sibling of FUZZ-001 on the bank-account create path)
+    endpoint: POST /bankAccounts
+    tags: [security, contract]
+    steps: |-
+      Authenticated, POST a bank account with malformed string fields
+      (control / non-UTF-8 chars, or values violating the documented length
+      constraints):
+
+      ```bash
+      curl -X POST -H 'Content-Type: application/json' -H 'Cookie: connect.sid=...' \
+        -d '{"accountNumber": "%óD", "bankName": "", "routingNumber": " "}' \
+        http://localhost:3001/bankAccounts
+      ```
+    expected: '422 Validation error (typed/validated request body per BankAccountRequest constraints)'
+    actual: '500 Internal Server Error — the malformed value reaches the backend (GraphQL/Prisma) unvalidated and throws.'
+    impact: 'Same input-validation gap as FUZZ-001/009 on the bank-account create path. A malformed payload from any authenticated user crashes the request instead of returning a clean 422.'
+    fix: 'Validate the request body (express-validator) before the create call in POST /bankAccounts; enforce the BankAccountRequest length/charset constraints and return 422 on violations.'
+
   # ── Signin / users ────────────────────────────────────────────────────────
   - id: BUG-001
     title: 'Missing required fields return 500 HTML instead of 422 JSON'

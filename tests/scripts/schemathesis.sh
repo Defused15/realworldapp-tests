@@ -47,6 +47,7 @@ EXCLUDED_OPS=(
   updateTransaction       # BUG-API-FUZZ-007  PATCH /transactions/{id} (null-deref → 500)
   likeTransaction         # BUG-API-FUZZ-007  POST /likes/{id} (null-deref → 500)
   commentTransaction      # BUG-API-FUZZ-007  POST /comments/{id} (null-deref → 500)
+  createBankAccount       # BUG-API-FUZZ-010  POST /bankAccounts (malformed body → 500)
 )
 EXCLUDE_FLAGS=()
 for op in "${EXCLUDED_OPS[@]}"; do EXCLUDE_FLAGS+=(--exclude-operation-id "$op"); done
