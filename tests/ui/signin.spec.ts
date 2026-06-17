@@ -385,9 +385,9 @@ test.describe('Signin', () => {
       test('checkbox can be checked then unchecked before submitting @regression', async ({
         signinPage,
       }) => {
-        await signinPage.rememberMeCheckbox.check();
+        await signinPage.setRememberMe(true);
         await expect(signinPage.rememberMeCheckbox).toBeChecked();
-        await signinPage.rememberMeCheckbox.uncheck();
+        await signinPage.setRememberMe(false);
         await expect(signinPage.rememberMeCheckbox).not.toBeChecked();
       });
 

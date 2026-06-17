@@ -212,7 +212,14 @@ test.describe('home API', () => {
         expect(typeof tx['description']).toBe('string');
         expect(typeof tx['privacyLevel']).toBe('string');
         expect(typeof tx['status']).toBe('string');
-        expect(typeof tx['requestStatus']).toBe('string');
+        // requestStatus is optional: request-type transactions carry a string
+        // ('pending'|'accepted'|'rejected'), payment-type transactions omit it
+        // entirely (seed data stores '' but the runtime serializer drops it).
+        // results[0] is the newest tx, so a payment created by another test can
+        // surface here — assert it's a string only when present.
+        if (tx['requestStatus'] !== undefined) {
+          expect(typeof tx['requestStatus']).toBe('string');
+        }
         expect(typeof tx['createdAt']).toBe('string');
         expect(typeof tx['modifiedAt']).toBe('string');
       });

@@ -64,18 +64,23 @@ test.describe('transaction API', () => {
         request,
       }) => {
         await loginAs(request, CREDS);
+        // Cross-check that the detail endpoint agrees with the public list for
+        // the SAME transaction. Pin to whatever is at the top of the feed
+        // rather than a fixed SEED_TX_ID: in a shared-DB run other tests create
+        // newer public transactions, and the public feed window can drop the
+        // seed tx entirely — making any fixed id non-deterministic. results[0]
+        // is guaranteed to exist in both endpoints.
         const listRes = await request.get(
           '/transactions/public?page=1&limit=20',
         );
         const {results} = await listRes.json();
-        const listTx = (results as Array<Record<string, unknown>>).find(
-          t => t['id'] === SEED_TX_ID,
-        );
-        const detailRes = await request.get(`/transactions/${SEED_TX_ID}`);
+        const listTx = (results as Array<Record<string, unknown>>)[0];
+        expect(listTx, 'public feed returned no transactions').toBeDefined();
+        const detailRes = await request.get(`/transactions/${listTx['id']}`);
         const {transaction} = await detailRes.json();
-        expect(transaction.senderName).toBe(listTx!['senderName']);
-        expect(transaction.receiverName).toBe(listTx!['receiverName']);
-        expect(transaction.amount).toBe(listTx!['amount']);
+        expect(transaction.senderName).toBe(listTx['senderName']);
+        expect(transaction.receiverName).toBe(listTx['receiverName']);
+        expect(transaction.amount).toBe(listTx['amount']);
       });
 
       test('amount is in cents (integer, not dollars) @regression', async ({
