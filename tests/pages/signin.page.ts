@@ -51,10 +51,22 @@ export class SigninPage extends BasePage {
     return this.errorMessage.isVisible();
   }
 
+  /**
+   * Toggle "Remember Me" to a target state via keyboard (focus + Space) rather
+   * than a mouse click. Clicking the MUI checkbox triggers a Formik re-render
+   * that detaches the underlying <input> mid-action, so Locator.check()'s
+   * post-click state verification fails on Firefox/WebKit with "Clicking the
+   * checkbox did not change its state". The keyboard path is stable on every
+   * browser (see the "keyboard-accessible" test). No-op if already in state.
+   */
+  async setRememberMe(checked: boolean): Promise<void> {
+    if ((await this.rememberMeCheckbox.isChecked()) === checked) return;
+    await this.rememberMeCheckbox.focus();
+    await this.page.keyboard.press('Space');
+  }
+
   async checkRememberMe(): Promise<void> {
-    if (!(await this.rememberMeCheckbox.isChecked())) {
-      await this.rememberMeCheckbox.check();
-    }
+    await this.setRememberMe(true);
   }
 
   async signInWithRemember(username: string, password: string): Promise<void> {

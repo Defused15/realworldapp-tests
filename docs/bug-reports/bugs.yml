@@ -389,3 +389,35 @@ bugs:
     expected: 'integer (cents) or numeric(19,4)'
     actual: 'amount column is declared double precision in PostgreSQL.'
     impact: 'Float rounding risk on direct DB reads. The API returns amount as an integer (cents), so the JS layer is correct — the mismatch only affects direct DB reads.'
+
+  # ── Performance / resilience (k6) ─────────────────────────────────────────
+  - id: BUG-PERF-001
+    title: 'API collapses under stress/spike load — p95 ~10s, ~2.4% requests drop (EOF on POST /login)'
+    severity: High
+    area: Performance
+    status: open
+    endpoint: 'POST /login, GET /transactions/public, GET /notifications (whole API under load)'
+    tags: [performance]
+    test_file: perf/k6/scenarios/home.js
+    steps: |-
+      Run the k6 stress and spike profiles against a freshly-seeded app
+      (the nightly `Performance (stress + spike)` job, ~200 peak VUs):
+
+      ```bash
+      npm run db:seed
+      npm run perf:stress   # PROFILE=stress
+      npm run perf:spike    # PROFILE=spike
+      ```
+    expected: |-
+      The journey thresholds hold under load:
+      - http_req_duration p(95) < 500ms, p(99) < 1000ms
+      - http_req_failed rate < 1%
+      - checks success rate > 99%
+    actual: |-
+      Thresholds crossed at ~200 VUs (nightly run 27672143029):
+      - http_req_duration p(95)=10.13s, p(99)=14.46s (avg 2.73s, max 15.51s)
+      - http_req_failed=2.35%; `POST /login` drops connections → `Post "http://localhost:3001/login": EOF`
+      - checks success 97.49% (login/feed/notifications each ~96%, 94 failures of ~3018)
+      The server saturates and abandons in-flight connections rather than shedding load gracefully (no timeout/429).
+    impact: 'Under realistic burst traffic the app becomes unusable (10s+ responses) and silently drops ~1 in 40 requests at the auth endpoint, so users cannot even log in. It fails to degrade gracefully (no backpressure/429/queueing). This is the nightly performance gate failing on a genuine app resilience limit, not a test defect.'
+    fix: 'Profile the API under load (DB connection-pool size, synchronous bcrypt on /login, per-request Prisma connections). Add a request timeout + 429 backpressure so the server sheds load instead of dropping connections, and right-size the connection pool / add caching for the public feed.'

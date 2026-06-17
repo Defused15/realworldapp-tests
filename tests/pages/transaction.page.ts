@@ -8,6 +8,7 @@ export class TransactionPage extends BasePage {
   // Static locators (no dynamic ID)
   readonly transactionDescription: Locator;
   readonly commentsList: Locator;
+  readonly commentItems: Locator;
   readonly receiverAvatar: Locator;
   readonly senderAvatar: Locator;
 
@@ -20,6 +21,10 @@ export class TransactionPage extends BasePage {
       '[data-test="transaction-description"]',
     );
     this.commentsList = page.locator('[data-test="comments-list"]');
+    // Comment <li> items — use with expect().toHaveCount() so the assertion
+    // auto-retries while the list renders async (a one-shot count() races the
+    // render and flakes; see comment-count test).
+    this.commentItems = this.commentsList.locator('li');
     this.receiverAvatar = page.locator(
       '[data-test="transaction-receiver-avatar"]',
     );
@@ -70,11 +75,11 @@ export class TransactionPage extends BasePage {
   }
 
   getCommentAt(index: number): Locator {
-    return this.commentsList.locator('li').nth(index);
+    return this.commentItems.nth(index);
   }
 
   async getCommentCount(): Promise<number> {
-    return this.commentsList.locator('li').count();
+    return this.commentItems.count();
   }
 
   // Action methods

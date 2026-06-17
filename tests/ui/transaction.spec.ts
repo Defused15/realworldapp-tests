@@ -419,8 +419,11 @@ test.describe('Transaction Detail', () => {
           await expect(transactionPage.commentsList).toBeHidden();
         } else {
           await expect(transactionPage.commentsList).toBeVisible();
-          const liCount = await transactionPage.getCommentCount();
-          expect(liCount).toBe(transaction.comments.length);
+          // toHaveCount auto-retries while the list renders async — a one-shot
+          // count() races the render and flakes (chromium + firefox).
+          await expect(transactionPage.commentItems).toHaveCount(
+            transaction.comments.length,
+          );
         }
       });
 
