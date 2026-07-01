@@ -5,8 +5,8 @@ name: Nightly
 # like the main pipeline (skipped until the app image is configured — BACKLOG.md).
 
 on:
-  schedule:
-    - cron: '0 2 * * *' # 02:00 UTC nightly
+  # schedule:
+  #   - cron: '0 2 * * *' # 02:00 UTC nightly
   workflow_dispatch: {}
 
 env:
