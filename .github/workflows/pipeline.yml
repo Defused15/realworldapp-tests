@@ -31,7 +31,7 @@ jobs:
     name: Quality (lint · types · build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with: {node-version: '22', cache: npm}
       - run: npm ci
@@ -50,7 +50,7 @@ jobs:
     needs: quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with: {fetch-depth: 0} # gitleaks needs full history
       # Run the gitleaks CLI via Docker instead of gitleaks/gitleaks-action@v2:
       # the action makes an unauthenticated GitHub API call to check the account
@@ -78,7 +78,7 @@ jobs:
     # compose stack), not as a GitHub Actions service.
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-app
       - run: npm run test:contract
 
@@ -89,7 +89,7 @@ jobs:
     runs-on: ubuntu-latest
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-app
       # PR → @smoke (fast); push → full api project. @quarantine excluded from
       # the gate (runs non-gating in the `quarantine` job below).
@@ -115,7 +115,7 @@ jobs:
       DB_USER: postgres
       DB_PASSWORD: postgres
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-app
       - run: npm run test:db
 
@@ -131,7 +131,7 @@ jobs:
         shard: [1, 2]
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-app
       # PR → @smoke; push → smoke + regression + security. --shard splits the run.
       # @quarantine is excluded so known-flaky tests can't break the gate (they
@@ -151,7 +151,7 @@ jobs:
     runs-on: ubuntu-latest
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-app
       - uses: grafana/setup-k6-action@v1
       # All feature scenarios at the smoke profile; thresholds (SLOs) in
@@ -165,7 +165,7 @@ jobs:
     runs-on: ubuntu-latest
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-app
       # Run zap-baseline.py directly (same as `npm run security:zap`) instead of
       # zaproxy/action-baseline: that action's bundled artifact upload uses the
@@ -201,7 +201,7 @@ jobs:
     runs-on: ubuntu-latest
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-app
       - name: Run Schemathesis
         run: npm run test:schemathesis
@@ -225,7 +225,7 @@ jobs:
     continue-on-error: true
     env: {APP_IMAGE: '${{ vars.APP_IMAGE }}'}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-app
       - run: npm run test:quarantine
         continue-on-error: true

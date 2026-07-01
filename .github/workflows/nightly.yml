@@ -34,7 +34,7 @@ jobs:
       DB_PASSWORD: postgres
       CROSS_BROWSER: '1' # also run Firefox + WebKit UI projects
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-app
       - run: npx playwright install --with-deps firefox webkit
       - run: npm run test:unit
@@ -54,7 +54,7 @@ jobs:
     # No postgres service: k6 hits the running app over HTTP; the app's own DB is
     # booted by setup-app. (A bare empty service DB here was unused and misleading.)
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-app
       - uses: grafana/setup-k6-action@v1
       # All load-worthy feature scenarios (home, signin, transaction) at the
@@ -72,7 +72,7 @@ jobs:
     # own. Flip continue-on-error off to make resilience a hard nightly gate.
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-app
       # The Postgres container name is compose-project dependent; discover it by
       # image so the experiments target the right container in CI.
